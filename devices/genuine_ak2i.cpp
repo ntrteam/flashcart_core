@@ -105,7 +105,7 @@ class Genuine_ak2i_44 : protected Flashcart {
             const uint32_t chipid_offset = 0x1FC0;
 
             uint32_t buf_size = PAGE_ROUND_UP(firm_offset + firm_size, page_size);
-            uint8_t *buf = (uint8_t *)malloc(buf_size);
+            uint8_t *buf = (uint8_t *)calloc(buf_size, sizeof(uint8_t));
 
             // readFlash(blowfish_adr, buf_size, buf); // Read in data that shouldn't be changed
             // Forget R/M/W for now. Read is broken on hw44. Let's just make sure that what we're flashing is sane.
