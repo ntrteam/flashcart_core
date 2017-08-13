@@ -62,4 +62,4 @@ class Flashcart {
         static Flashcart *detected_cache;
 };
 
-extern std::vector<Flashcart*> flashcart_list;
+extern std::vector<Flashcart*> *flashcart_list;

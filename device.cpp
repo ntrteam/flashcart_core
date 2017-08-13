@@ -7,7 +7,7 @@
 #include "DrawCharacter.h"
 #include "delay.h"
 
-std::vector<Flashcart*> flashcart_list;
+std::vector<Flashcart*> *flashcart_list = nullptr;
 
 const uint8_t Flashcart::NTR_cmdDummy[8] = {0x9F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 const uint8_t Flashcart::NTR_cmdChipid[8] = {0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -17,7 +17,10 @@ const uint8_t Flashcart::ak2i_cmdGetHWRevision[8] = {0xD1, 0x00, 0x00, 0x00, 0x0
 // Flashcart *Flashcart::detected_cache = nullptr; // No way to detect removal.
 
 Flashcart::Flashcart() {
-    flashcart_list.push_back(this);
+    if (flashcart_list == nullptr) {
+        flashcart_list = new std::vector<Flashcart*>();
+    }
+    flashcart_list->push_back(this);
     page_size = 0x10000; // Default until further notice.
 }
 
@@ -128,7 +131,7 @@ uint32_t Flashcart::getHardwareVersion() {
 
 Flashcart *Flashcart::detectCart() {
     // if (detected_cache) return detected_cache; // Uncomment once we have a way to detect cart removal.
-    for (std::vector<Flashcart*>::iterator it = flashcart_list.begin() ; it != flashcart_list.end(); ++it) {
+    for (std::vector<Flashcart*>::iterator it = flashcart_list->begin() ; it != flashcart_list->end(); ++it) {
         if((*it)->setup()) {
             // detected_cache = *it;
             // (*it)->cleanup(); // We leave the cart setup.
