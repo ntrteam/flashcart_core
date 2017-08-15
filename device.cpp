@@ -1,11 +1,8 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "gamecart/protocol.h"
-#include "gamecart/protocol_ntr.h"
 #include "device.h"
-#include "DrawCharacter.h"
-#include "delay.h"
+#include "delay.h" // TODO: platform specific! Remove this!
 
 std::vector<Flashcart*> *flashcart_list = nullptr;
 
@@ -39,6 +36,8 @@ void Flashcart::reset() {
 void Flashcart::waitFlashBusy() {
     uint32_t state;
     do {
+        // TODO: Can we not use delay here, and actually figure out what's going on with this?
+        // I think we're probably not checking the right bit, or something like that.
         ioDelay( 16 * 10 );
         sendCommand(ak2i_cmdWaitFlashBusy, 4, (uint8_t *)&state);
     } while ((state & 1) != 0);
@@ -139,17 +138,4 @@ Flashcart *Flashcart::detectCart() {
         }
     }
     return nullptr;
-}
-
-// Platform specific, should find a better way to handle these.
-void Flashcart::platformInit(){
-    Cart_NTRInit();
-}
-
-void Flashcart::sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp) {
-    NTR_SendCommand(cmdbuf, response_len, 32, resp);
-}
-
-void Flashcart::showProgress(uint32_t current, uint32_t total) {
-    ShowProgress(TOP_SCREEN, current, total);
 }

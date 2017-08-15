@@ -2,7 +2,24 @@
 
 #include <cstring>
 
+#define BIT(n) (1 << (n))
+
 class R4SDHC_DualCore : Flashcart {
+    private:
+        uint8_t decrypt(uint8_t enc) {
+        	uint8_t dec = 0;
+        	enc ^= 0x98;
+        	if (enc & BIT(0)) dec |= BIT(6);
+        	if (enc & BIT(1)) dec |= BIT(2);
+        	if (enc & BIT(2)) dec |= BIT(7);
+        	if (enc & BIT(3)) dec |= BIT(3);
+        	if (enc & BIT(4)) dec |= BIT(1);
+        	if (enc & BIT(5)) dec |= BIT(0);
+        	if (enc & BIT(6)) dec |= BIT(4);
+        	if (enc & BIT(7)) dec |= BIT(5);
+        	return dec;
+        }
+
     protected:
         static const uint8_t cmdReadFlash[8];
         static const uint8_t cmdEraseFlash[8];

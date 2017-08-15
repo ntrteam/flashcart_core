@@ -4,19 +4,21 @@ using std::memcpy;
 
 #include "../device.h"
 
+#define BIT(n) (1 << (n))
+
 class R4i_Gold_3DS : Flashcart {
     private:
         static uint8_t encrypt(uint8_t dec)
         {
             uint8_t enc = 0;
-            if (dec & 0x01) enc |= 0x10;
-            if (dec & 0x02) enc |= 0x08;
-            if (dec & 0x04) enc |= 0x80;
-            if (dec & 0x08) enc |= 0x40;
-            if (dec & 0x10) enc |= 0x02;
-            if (dec & 0x20) enc |= 0x01;
-            if (dec & 0x40) enc |= 0x04;
-            if (dec & 0x80) enc |= 0x20;
+            if (dec & BIT(0)) enc |= BIT(4);
+            if (dec & BIT(1)) enc |= BIT(3);
+            if (dec & BIT(2)) enc |= BIT(7);
+            if (dec & BIT(3)) enc |= BIT(6);
+            if (dec & BIT(4)) enc |= BIT(1);
+            if (dec & BIT(5)) enc |= BIT(0);
+            if (dec & BIT(6)) enc |= BIT(2);
+            if (dec & BIT(7)) enc |= BIT(5);
             return enc;
         }
 
@@ -24,14 +26,14 @@ class R4i_Gold_3DS : Flashcart {
         // static uint8_t decrypt(uint8_t enc)
         // {
         //     uint8_t dec = 0;
-        //     if (enc & 0x01) dec |= 0x20;
-        //     if (enc & 0x02) dec |= 0x10;
-        //     if (enc & 0x04) dec |= 0x40;
-        //     if (enc & 0x08) dec |= 0x02;
-        //     if (enc & 0x10) dec |= 0x01;
-        //     if (enc & 0x20) dec |= 0x80;
-        //     if (enc & 0x40) dec |= 0x08;
-        //     if (enc & 0x80) dec |= 0x04;
+        //     if (enc & BIT(0)) dec |= BIT(5);
+        //     if (enc & BIT(1)) dec |= BIT(4);
+        //     if (enc & BIT(2)) dec |= BIT(6);
+        //     if (enc & BIT(3)) dec |= BIT(1);
+        //     if (enc & BIT(4)) dec |= BIT(0);
+        //     if (enc & BIT(5)) dec |= BIT(7);
+        //     if (enc & BIT(6)) dec |= BIT(3);
+        //     if (enc & BIT(6)) dec |= BIT(2);
         //     return dec;
         // }
 
