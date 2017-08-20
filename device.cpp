@@ -75,7 +75,6 @@ void Flashcart::eraseFlash(uint32_t address, uint32_t length) {
     for (uint32_t addr=address; addr < endaddr;) {
         size_t step = sendEraseCommand(addr);
         addr += step;
-        curpos += step;
         waitFlashBusy(); // TODO: move inside the send*Command functions?
         showProgress(addr-address,length);
     }
@@ -95,9 +94,7 @@ void Flashcart::writeFlash(uint32_t address, uint32_t length, const uint8_t *buf
         eraseFlash(page, page_size); // Erase a page before writing.
 
         for (uint32_t addr=page; addr < page + page_size; ++addr, ++curpos) {
-            sendWriteByteCommand(cmdbuf, addr, *curpos);
-            addr += step;
-            curpos += step;
+            sendWriteByteCommand(addr, *curpos);
             waitFlashBusy(); // TODO: move inside the send*Command functions?
             showProgress(addr-address,length);
         }
