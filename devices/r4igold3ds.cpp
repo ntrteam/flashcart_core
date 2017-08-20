@@ -39,7 +39,7 @@ class R4i_Gold_3DS : Flashcart {
 
         static void encrypt_memcpy(uint8_t *dst, uint8_t *src, uint32_t length)
         {
-            for(int i=0; i<length; i++)
+            for(int i = 0; i < (int)length; ++i)
             {
                 dst[i] = encrypt(src[i]);
                 //dst[i] = (src[i]);
@@ -51,29 +51,45 @@ class R4i_Gold_3DS : Flashcart {
         static const uint8_t cmdEraseFlash[8];
         static const uint8_t cmdWriteByteFlash[8];
 
-        virtual size_t formatReadCommand(uint8_t *cmdbuf, uint32_t address) {
+        virtual size_t sendReadCommand(uint8_t *outbuf, uint32_t address) {
+            uint8_t cmdbuf[8];
             memcpy(cmdbuf, cmdReadFlash, 8);
             cmdbuf[1] = (address >> 16) & 0xFF;
             cmdbuf[2] = (address >>  8) & 0xFF;
             cmdbuf[3] = (address >>  0) & 0xFF;
+
+            // TODO: Add actual flags.
+            sendCommand(cmdbuf, 0x200, outbuf);
+
             return 0x200; // Data
         }
 
-        virtual size_t formatEraseCommand(uint8_t *cmdbuf, uint32_t address) {
+        virtual size_t sendEraseCommand(uint32_t address) {
+            uint8_t cmdbuf[8];
+            uint32_t status;
             memcpy(cmdbuf, cmdEraseFlash, 8);
             cmdbuf[1] = (address >> 16) & 0xFF;
             cmdbuf[2] = (address >>  8) & 0xFF;
             cmdbuf[3] = (address >>  0) & 0xFF;
-            return 4; // Status
+
+            // TODO: Add actual flags.
+            sendCommand(cmdbuf, 4, (uint8_t *)&status);
+
+            return 0x10000; // Erase cluster size.
         }
 
-        virtual size_t formatWriteCommand(uint8_t *cmdbuf, uint32_t address, uint8_t value) {
+        virtual size_t sendWriteByteCommand(uint32_t address, uint8_t value) {
+            uint8_t cmdbuf[8];
+            uint32_t status;
             memcpy(cmdbuf, cmdWriteByteFlash, 8);
             cmdbuf[1] = (address >> 16) & 0xFF;
             cmdbuf[2] = (address >>  8) & 0xFF;
             cmdbuf[3] = (address >>  0) & 0xFF;
             cmdbuf[4] = value;
-            return 4; // Status
+
+            sendCommand(cmdbuf, 4, (uint8_t *)&status);
+
+            return 1;
         }
 
     public:

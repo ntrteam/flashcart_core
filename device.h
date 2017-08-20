@@ -33,20 +33,20 @@ class Flashcart {
 
     protected:
         static void reset();
-        static void waitFlashBusy();
+        static void waitFlashBusy(); // This should be moved into device specific stuff.
         virtual void eraseFlash(uint32_t address, uint32_t length);
 
         // Default is do-nothing.
         virtual void switchMode(Flashcart_mode mode) { (void)mode; };
 
-        virtual size_t formatReadCommand(uint8_t *cmdbuf, uint32_t address) = 0;
-        virtual size_t formatEraseCommand(uint8_t *cmdbuf, uint32_t address) = 0;
-        virtual size_t formatWriteCommand(uint8_t *cmdbuf, uint32_t address, uint8_t value) = 0;
+        virtual size_t sendReadCommand(uint8_t *outbuf, uint32_t address) = 0;
+        virtual size_t sendEraseCommand(uint32_t address) = 0;
+        virtual size_t sendWriteByteCommand(uint32_t address, uint8_t value) = 0;
         virtual uint32_t getLength(uint32_t length, uint32_t offset);
 
         // platform specific! Find a better way to handle these.
         static void platformInit();
-        static void sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp);
+        static void sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, uint32_t flags=32);
         static void showProgress(uint32_t current, uint32_t total);
 
         size_t max_length;

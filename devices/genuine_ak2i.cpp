@@ -9,15 +9,11 @@ class Genuine_ak2i_44 : protected Flashcart {
         static const uint8_t ak2i_cmdActiveFatMap[8];
         static const uint8_t ak2i_cmdUnlockFlash[8];
         static const uint8_t ak2i_cmdLockFlash[8];
-        static const uint8_t ak2i_cmdUnlockASIC[8]; 
+        static const uint8_t ak2i_cmdUnlockASIC[8];
         static const uint8_t ak2i_cmdWaitFlashBusy[8];
 
-        // 0xA5..0x5A on R4i Gold 3DS
         static const uint8_t ak2i_cmdReadFlash[8];
-        // 0xDA..0xA5 on R4i Gold 3DS
         static const uint8_t ak2i_cmdEraseFlash[8];
-
-        // 0xDA..0x5A on R4i Gold 3DS
         static const uint8_t ak2i_cmdWriteByteFlash[8];
 
         Flashcart_mode curmode;
@@ -30,39 +26,54 @@ class Genuine_ak2i_44 : protected Flashcart {
                     break;
                 case FLASH_WRITE:
                     sendCommand(ak2i_cmdUnlockFlash, 0, nullptr);
-                    sendCommand(ak2i_cmdUnlockASIC, 0, nullptr); 
+                    sendCommand(ak2i_cmdUnlockASIC, 0, nullptr);
                     break;
             }
-            
+
             sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr);
 
             curmode = mode;
         }
 
-        virtual size_t formatReadCommand(uint8_t *cmdbuf, uint32_t address) {
+        virtual size_t sendReadCommand(uint8_t *outbuf, uint32_t address) {
+            uint8_t cmdbuf[8];
             memcpy(cmdbuf, ak2i_cmdReadFlash, 8);
             cmdbuf[1] = (address >> 24) & 0xFF;
             cmdbuf[2] = (address >> 16) & 0xFF;
             cmdbuf[3] = (address >>  8) & 0xFF;
             cmdbuf[4] = (address >>  0) & 0xFF;
+
+            // TODO: Add actual flags.
+            sendCommand(cmdbuf, 200, outbuf);
+
             return 0x200; // Data
         }
 
-        virtual size_t formatEraseCommand(uint8_t *cmdbuf, uint32_t address) {
+        virtual size_t sendEraseCommand(uint32_t address) {
+            uint8_t cmdbuf[8];
             memcpy(cmdbuf, ak2i_cmdEraseFlash, 8);
             cmdbuf[1] = (address >> 16) & 0x1F;
             cmdbuf[2] = (address >>  8) & 0xFF;
             cmdbuf[3] = (address >>  0) & 0xFF;
-            return 0; // No status.
+
+            // TODO: Add actual flags.
+            sendCommand(cmdbuf, 0, nullptr);
+
+            return 0x10000; // Erase cluster size.
         }
 
-        virtual size_t formatWriteCommand(uint8_t *cmdbuf, uint32_t address, uint8_t value) {
+        virtual size_t sendWriteByteCommand(uint32_t address, uint8_t value) {
+            uint8_t cmdbuf[8];
             memcpy(cmdbuf, ak2i_cmdWriteByteFlash, 8);
             cmdbuf[1] = (address >> 16) & 0x1F;
             cmdbuf[2] = (address >>  8) & 0xFF;
             cmdbuf[3] = (address >>  0) & 0xFF;
             cmdbuf[4] = value;
-            return 0; // No status.
+
+            // TODO: Add actual flags.
+            sendCommand(cmdbuf, 0, nullptr);
+
+            return 1; // No status.
         }
 
     public:
@@ -82,7 +93,7 @@ class Genuine_ak2i_44 : protected Flashcart {
 
             sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr); // TODO: Not all of this is needed when reading, is it?
             sendCommand(ak2i_cmdActiveFatMap, 4, (uint8_t*)&garbage);
-            sendCommand(ak2i_cmdUnlockASIC, 0, nullptr); 
+            sendCommand(ak2i_cmdUnlockASIC, 0, nullptr);
 
             curmode = FLASH_READ;
             return true;
@@ -125,7 +136,7 @@ const uint8_t Genuine_ak2i_44::ak2i_cmdSetMapTableAddress[8] = {0xD0, 0x00, 0x00
 const uint8_t Genuine_ak2i_44::ak2i_cmdActiveFatMap[8] = {0xC2, 0x55, 0xAA, 0x55, 0xAA, 0x00, 0x00, 0x00};
 const uint8_t Genuine_ak2i_44::ak2i_cmdUnlockFlash[8] = {0xC2, 0xAA, 0x55, 0xAA, 0x55, 0x00, 0x00, 0x00};
 const uint8_t Genuine_ak2i_44::ak2i_cmdLockFlash[8] = {0xC2, 0xAA, 0xAA, 0x55, 0x55, 0x00, 0x00, 0x00};
-const uint8_t Genuine_ak2i_44::ak2i_cmdUnlockASIC[8] = {0xC2, 0xAA, 0x55, 0x55, 0xAA, 0x00, 0x00, 0x00}; 
+const uint8_t Genuine_ak2i_44::ak2i_cmdUnlockASIC[8] = {0xC2, 0xAA, 0x55, 0x55, 0xAA, 0x00, 0x00, 0x00};
 const uint8_t Genuine_ak2i_44::ak2i_cmdReadFlash[8] = {0xB7, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00};
 const uint8_t Genuine_ak2i_44::ak2i_cmdEraseFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00};
 const uint8_t Genuine_ak2i_44::ak2i_cmdWriteByteFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00};
@@ -136,23 +147,33 @@ class Genuine_ak2i_81 : protected Genuine_ak2i_44 {
         static const uint8_t ak2i_cmdEraseFlash81[8];
         static const uint8_t ak2i_cmdWriteByteFlash81[8];
 
-        virtual size_t formatEraseCommand(uint8_t *cmdbuf, uint32_t address) {
+        virtual size_t sendEraseCommand(uint32_t address) {
+            uint8_t cmdbuf[8];
             memcpy(cmdbuf, ak2i_cmdEraseFlash81, 8);
             cmdbuf[1] = (address >> 16) & 0xFF;
             cmdbuf[2] = (address >>  8) & 0xFF;
             cmdbuf[3] = (address >>  0) & 0xFF;
-            return 0; // No status.
+
+            // TODO: Add actual flags.
+            sendCommand(cmdbuf, 0, nullptr);
+
+            return 0x10000; // Erase cluster size.
         }
 
-        virtual size_t formatWriteCommand(uint8_t *cmdbuf, uint32_t address, uint8_t value) {
+        virtual size_t sendWriteByteCommand(uint32_t address, uint8_t value) {
+            uint8_t cmdbuf[8];
             memcpy(cmdbuf, ak2i_cmdWriteByteFlash81, 8);
             cmdbuf[1] = (address >> 16) & 0xFF;
             cmdbuf[2] = (address >>  8) & 0xFF;
             cmdbuf[3] = (address >>  0) & 0xFF;
             cmdbuf[4] = value;
-            return 0; // No status.
+
+            // TODO: Add actual flags.
+            sendCommand(cmdbuf, 0, nullptr);
+
+            return 1;
         }
-        
+
         virtual void switchMode(Flashcart_mode mode) {
             if (curmode == mode) return;
 
@@ -162,10 +183,10 @@ class Genuine_ak2i_81 : protected Genuine_ak2i_44 {
                     break;
                 case FLASH_WRITE:
                     sendCommand(ak2i_cmdUnlockFlash, 0, nullptr);
-                    sendCommand(ak2i_cmdUnlockASIC, 0, nullptr); 
+                    sendCommand(ak2i_cmdUnlockASIC, 0, nullptr);
                     break;
             }
-            
+
             sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr);
             sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr);
 
@@ -190,7 +211,7 @@ class Genuine_ak2i_81 : protected Genuine_ak2i_44 {
             sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr);
             sendCommand(ak2i_cmdActiveFatMap, 4, (uint8_t*)&garbage);
             sendCommand(ak2i_cmdUnlockFlash, 0, nullptr);
-            sendCommand(ak2i_cmdUnlockASIC, 0, nullptr); 
+            sendCommand(ak2i_cmdUnlockASIC, 0, nullptr);
             sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr);
 
             curmode = FLASH_READ;

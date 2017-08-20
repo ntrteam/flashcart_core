@@ -52,15 +52,17 @@ void Flashcart::readFlash(uint32_t address, uint32_t length, uint8_t *buf) {
     length = getLength(length, address);
     uint32_t endaddr = address + length; // TODO: make sure that length is aligned?
     uint8_t *curpos = buf;
-    size_t step = formatReadCommand(cmdbuf, 0);
 
-    for (uint32_t addr=address; addr < endaddr; addr += step, curpos += step) {
-        formatReadCommand(cmdbuf, addr);
-        sendCommand(cmdbuf, step, curpos);
+    for (uint32_t addr=address; addr < endaddr;) {
+        size_t step = sendReadCommand(curpos, addr);
+        addr += step;
+        curpos += step;
         showProgress(addr-address,length);
     }
 }
 
+// TODO: Should we bother having this as a seperate function anymore?
+//       perhaps we should just merge this into writeFlash.
 void Flashcart::eraseFlash(uint32_t address, uint32_t length) {
     // TODO: make sure length is aligned?
     uint8_t cmdbuf[8];
@@ -70,13 +72,11 @@ void Flashcart::eraseFlash(uint32_t address, uint32_t length) {
     length = getLength(length, address);
     uint32_t endaddr = address + length;
 
-    size_t status_size = formatEraseCommand(cmdbuf, 0);
-    uint8_t *status = (uint8_t *)malloc(status_size);
-
-    for (uint32_t addr=address; addr < endaddr; addr+=page_size) {
-        formatEraseCommand(cmdbuf, addr);
-        sendCommand(cmdbuf, status_size, status);
-        waitFlashBusy();
+    for (uint32_t addr=address; addr < endaddr;) {
+        size_t step = sendEraseCommand(addr);
+        addr += step;
+        curpos += step;
+        waitFlashBusy(); // TODO: move inside the send*Command functions?
         showProgress(addr-address,length);
     }
     free(status);
@@ -91,20 +91,17 @@ void Flashcart::writeFlash(uint32_t address, uint32_t length, const uint8_t *buf
     uint32_t endaddr = address + length;
     const uint8_t *curpos = buf;
 
-    size_t status_size = formatEraseCommand(cmdbuf, 0);
-    uint8_t *status = (uint8_t *)malloc(status_size);
-
     for (uint32_t page=address; page < endaddr; page+=page_size) {
         eraseFlash(page, page_size); // Erase a page before writing.
 
         for (uint32_t addr=page; addr < page + page_size; ++addr, ++curpos) {
-            formatWriteCommand(cmdbuf, addr, *curpos);
-            sendCommand(cmdbuf, status_size, status);
-            waitFlashBusy();
+            sendWriteByteCommand(cmdbuf, addr, *curpos);
+            addr += step;
+            curpos += step;
+            waitFlashBusy(); // TODO: move inside the send*Command functions?
             showProgress(addr-address,length);
         }
     }
-    free(status);
 }
 
 uint32_t Flashcart::getChipID() {

@@ -28,29 +28,40 @@ class R4SDHC_DualCore : Flashcart {
         static const uint8_t cmdUnkD0AA[8];
         static const uint8_t cmdUnkD0[8];
 
-        virtual size_t formatReadCommand(uint8_t *cmdbuf, uint32_t address) {
-            // TODO
+        virtual size_t formatReadCommand(uint8_t *outbuf, uint32_t address) {
+            uint8_t cmdbuf[8];
+            // TODO: Find the actual flash reading command.
             // memcpy(cmdbuf, cmdReadFlash, 8);
-            // cmdbuf[1] = (address >> 16) & 0xFF;
-            // cmdbuf[2] = (address >>  8) & 0xFF;
-            // cmdbuf[3] = (address >>  0) & 0xFF;
+            cmdbuf[1] = (address >> 16) & 0xFF;
+            cmdbuf[2] = (address >>  8) & 0xFF;
+            cmdbuf[3] = (address >>  0) & 0xFF;
+
+            // sendCommand(cmdbuf, 0x200, outbuf);
+            (void)cmdbuf; // Kill the warning for now.
+
             return 0x200; // Data
         }
 
-        virtual size_t formatEraseCommand(uint8_t *cmdbuf, uint32_t address) {
+        virtual size_t sendEraseCommand(uint32_t address) {
+            uint8_t cmdbuf[8];
             memcpy(cmdbuf, cmdEraseFlash, 8);
             cmdbuf[1] = (address >> 16) & 0xFF;
             cmdbuf[2] = (address >>  8) & 0xFF;
             cmdbuf[3] = (address >>  0) & 0xFF;
+
+            sendCommand(cmdbuf, 0, nullptr);
             return 0; // No status.
         }
 
-        virtual size_t formatWriteCommand(uint8_t *cmdbuf, uint32_t address, uint8_t value) {
+        virtual size_t sendWriteByteCommand(uint32_t address, uint8_t value) {
+            uint8_t cmdbuf[8];
             memcpy(cmdbuf, cmdWriteByteFlash, 8);
             cmdbuf[1] = (address >> 16) & 0xFF;
             cmdbuf[2] = (address >>  8) & 0xFF;
             cmdbuf[3] = (address >>  0) & 0xFF;
             cmdbuf[4] = value;
+
+            sendCommand(cmdbuf, 0, nullptr);
             return 0; // No status.
         }
 
@@ -81,9 +92,11 @@ class R4SDHC_DualCore : Flashcart {
         virtual void writeBlowfishAndFirm(uint8_t *template_data, uint32_t template_size) = 0;
 };
 
-const uint8_t R4SDHC_DualCore::cmdReadFlash[8] = {0xB7, 0x00, 0x00, 0x00, 0x00, 0x15, 0x00, 0x00};
+// const uint8_t R4SDHC_DualCore::cmdReadFlash[8]; ... we don't actually know.
 const uint8_t R4SDHC_DualCore::cmdEraseFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00};
 const uint8_t R4SDHC_DualCore::cmdWriteByteFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00};
 
 const uint8_t R4SDHC_DualCore::cmdUnkD0AA[8] = {0xD0, 0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 const uint8_t R4SDHC_DualCore::cmdUnkD0[8] = {0xD0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+// R4SDHC_DualCore r4sdhc;
