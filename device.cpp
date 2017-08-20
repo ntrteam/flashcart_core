@@ -78,7 +78,6 @@ void Flashcart::eraseFlash(uint32_t address, uint32_t length) {
         waitFlashBusy(); // TODO: move inside the send*Command functions?
         showProgress(addr-address,length);
     }
-    free(status);
 }
 
 void Flashcart::writeFlash(uint32_t address, uint32_t length, const uint8_t *buf) {
