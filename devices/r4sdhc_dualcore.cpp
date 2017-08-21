@@ -1,4 +1,4 @@
-#include "../device.h"
+/*#include "../device.h"
 
 #include <cstring>
 
@@ -100,3 +100,4 @@ const uint8_t R4SDHC_DualCore::cmdUnkD0AA[8] = {0xD0, 0xAA, 0x00, 0x00, 0x00, 0x
 const uint8_t R4SDHC_DualCore::cmdUnkD0[8] = {0xD0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 // R4SDHC_DualCore r4sdhc;
+*/
