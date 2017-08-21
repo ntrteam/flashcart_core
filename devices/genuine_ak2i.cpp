@@ -44,7 +44,7 @@ class Genuine_ak2i_44 : protected Flashcart {
             cmdbuf[4] = (address >>  0) & 0xFF;
 
             // TODO: Add actual flags.
-            sendCommand(cmdbuf, 200, outbuf);
+            sendCommand(cmdbuf, 0x200, outbuf);
 
             return 0x200; // Data
         }
