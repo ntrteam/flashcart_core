@@ -1,13 +1,11 @@
 #pragma once
 
-#include <cstring>
 #include <algorithm>
 using std::memcpy;
 
 #include "../device.h"
-#define BIT(n) (1 << (n))
 
-class R4i_Gold_3DS : Flashcart {
+class R4i_Gold_3DS : public Flashcart {
 private:
     static uint8_t encrypt(uint8_t dec);
     static void encrypt_memcpy(uint8_t *dst, uint8_t *src, uint32_t length);

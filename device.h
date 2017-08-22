@@ -23,7 +23,6 @@ class Flashcart {
         size_t getMaxLength() { return max_length; }
         virtual void readFlash(uint32_t address, uint32_t length, uint8_t *buf);
         virtual void writeFlash(uint32_t address, uint32_t length, const uint8_t *buf);
-        virtual void eraseFlash(uint32_t address, uint32_t length);
         virtual void cleanup() = 0;
 
         virtual void writeBlowfishAndFirm(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) = 0;
@@ -32,6 +31,8 @@ class Flashcart {
         static void reset();
 
     protected:
+        virtual void eraseFlash(uint32_t address, uint32_t length);
+
         virtual uint32_t getLength(uint32_t length, uint32_t offset);
         
         virtual size_t sendReadCommand(uint8_t *outbuf, uint32_t address) = 0;
