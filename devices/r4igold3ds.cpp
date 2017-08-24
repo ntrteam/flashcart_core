@@ -103,7 +103,7 @@ class R4i_Gold_3DS : Flashcart {
 
             uint32_t hw_revision;
             sendCommand(ak2i_cmdGetHWRevision, 4, (uint8_t*)&hw_revision); // Get HW Revision
-            if (hw_revision != 0xA7A7A7A7) return false;
+            if (hw_revision != 0xA7A7A7A7 && hw_revision != 0xA6A6A6A6 && hw_revision != 0xA5A5A5A5) return false;
 
             // Doesn't use any locking or unlocking functions?
             return true;
