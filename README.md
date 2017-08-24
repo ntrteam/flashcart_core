@@ -17,6 +17,14 @@ End users cannot use this directly, and should use one of the following applicat
 ### Planned Cards
  - Supercard DS2
 
+## Requesting support for a new card
+We get a lot of requests for new cards to be supported. Before requesting support, please read other issues, both open and closed, to see if your card has been considered or not. If you'd like your cart to be supported please provide, at the very least, the following information:
+ - Where your flashcart was purchased from and/or the website listed on the card.
+ - Any updaters, kernels or other misc software that may be useful
+ - Pictures of the inside of the cart. Please note we are not responsible for any damage to your cart.
+ - a dump of the ROM using GodMode9
+ - any other pertinent information, like any known commands for interacting with the cart.
+
 ## Developer Usage
 Define `Flashcart::platformInit`, `Flashcart::sendCommand`, and `Flashcart::showProgress`, and use `Flashcart::detectCart` to detect whatever you have. Then you can use the methods on the returned device to preform stuff in a (mostly) device-independent manner.
 
