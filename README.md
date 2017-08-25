@@ -10,6 +10,7 @@ End users cannot use this directly, and should use one of the following applicat
  - Acekard 2i HW-44
  - Acekard 2i HW-81
  - R4i Gold 3DS RTS
+ - Infinity 3 i R4
 
 ### Incomplete Cards
  - R4 SDHC Dualcore
