@@ -155,8 +155,6 @@ public:
 
     bool initialize()
     {
-        return true;
-
         m_flashchip = get_flashchip_id();
         ShowPrompt(BOTTOM_SCREEN, false, "Flashchip: %08x", m_flashchip);
         if (!flashchip_supported(m_flashchip))
@@ -173,7 +171,7 @@ public:
         dstt_flash_command(0x88, 0, 0);
     }
     
-    void readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
+    bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
         uint32_t i = 0;
         uint32_t end_address = address + length;
 
@@ -191,16 +189,20 @@ public:
 
             address += 4;
         }
+
+        return true;
     }
 
-    void writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {
+    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {
         // also todo.. read the flash before we overwrite
         // todo: I know this works on the BAC2 chip, but we need a list
         //Sector_Erase_W(address, length);
         //Write_Type_1(address, length, (uint32_t*)buffer);
+
+        return false;
     }
 
-    void injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) {
+    bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) {
         // 0x0000:0x2000 = 0xFF
         // 8192
 
@@ -229,7 +231,7 @@ public:
         Program_Word(14, 0x42);
         Program_Word(15, 0x43);
 
-        return; // don't fuckin run this shit yet        
+        return false; // don't fuckin run this shit yet        
 
         // DSTT Mirrors the flash, but only the second is used?
         // Flash them both anyway

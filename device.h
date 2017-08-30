@@ -18,9 +18,9 @@ public:
     virtual bool initialize() = 0;
     virtual void shutdown() = 0;
 
-    virtual void readFlash(uint32_t address, uint32_t length, uint8_t *buffer) = 0;
-    virtual void writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) = 0;
-    virtual void injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) = 0;
+    virtual bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) = 0;
+    virtual bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) = 0;
+    virtual bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) = 0;
 
     const char *getName() { return m_name; }
     const size_t getMaxLength() { return m_max_length; }
