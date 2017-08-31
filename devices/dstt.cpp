@@ -1,6 +1,7 @@
 #include "device.h"
 
-#include "ui.h" // platform specific (JUST FOR DEBUG)
+#include <stdlib.h>
+#include <cstring>
 
 const uint16_t supported_flashchips[] = {
     0x041F, 0x051F, 0x1A37, 0x3437, 0x49B0, 0x49C2, 0x5BC2, 0x80BF, 0x9020, 0x9089, 0x9120, 0x912C, 0x9189, 0x922C, 0x9289, 0x9320, 0x9389,
@@ -23,7 +24,7 @@ class DSTT : Flashcart {
 private:
     uint32_t m_flashchip;
 
-    uint32_t dstt_flash_command(uint8_t data0, uint32_t data1, uint32_t data2)
+    uint32_t dstt_flash_command(uint8_t data0, uint32_t data1, uint16_t data2)
     {
         uint8_t cmd[8];
         cmd[0] = data0;
@@ -41,16 +42,20 @@ private:
         return ret;
     }
 
+    void dstt_reset()
+    {
+        dstt_flash_command(0x87, 0, 0xF0);
+    }
+
     uint32_t get_flashchip_id()
     {
         uint32_t flashchip;
 
-        dstt_flash_command(0x86, 0, 0);        
         dstt_flash_command(0x87, 0x5555, 0xAA);
         dstt_flash_command(0x87, 0x2AAA, 0x55);
         dstt_flash_command(0x87, 0x5555, 0x90);
         flashchip = dstt_flash_command(0, 0, 0);
-        dstt_flash_command(0x87, 0x5555, 0xF0);
+        dstt_reset();
 
         if ((flashchip & 0xFF00FFFF) != 0x7F003437 && (flashchip & 0xFF00FFFF) != 0x7F00B537
               && (uint16_t)flashchip != 0x41F && (uint16_t)flashchip != 0x51F)
@@ -59,13 +64,10 @@ private:
             dstt_flash_command(0x87, 0x2AAA, 0x55);
             dstt_flash_command(0x87, 0x5555, 0x90);
             uint32_t device_id = dstt_flash_command(0, 0x100, 0);
-            dstt_flash_command(0x87, 0x5555, 0xF0);
+            dstt_reset();
          
             if ((uint16_t)device_id == 0xBA1C || (uint16_t)device_id == 0xB91C)
                 return device_id;
-
-            //dstt_flash_command(0x87, 0x5555, 0xF0); // not sure if good to do ?
-            //dstt_flash_command(0x87, 0x5555, 0xFF); // not sure if good to do ?
         }
 
         return flashchip;
@@ -85,69 +87,36 @@ private:
         return false;
     }
 
-    // Erases an 0x2000 sector ?
-    void Sector_Erase_W(uint32_t offset, uint32_t length)
+    void Erase_Block(uint32_t offset, uint32_t length)
     {
-        dstt_flash_command(0x86, 0, 0);
         dstt_flash_command(0x87, 0x5555, 0xAA);
         dstt_flash_command(0x87, 0x2AAA, 0x55);
         dstt_flash_command(0x87, 0x5555, 0x80);
         dstt_flash_command(0x87, 0x5555, 0xAA);
         dstt_flash_command(0x87, 0x2AAA, 0x55);
 
-        dstt_flash_command(0x87, 0x5555, 0x10); // chip erase
         dstt_flash_command(0x87, offset, 0x30);
 
         uint32_t end_offset = offset + length;
         while (offset < end_offset)
         {
-            while (dstt_flash_command(0, offset, 0) != 0xFFFFFFFF); // todo: error if this never happens
+            while (dstt_flash_command(0, offset, 0) != 0xFFFFFFFF);
             offset += 4;
         }
 
-        dstt_flash_command(0x87, 0x5555, 0xF0); // Reset Mode
+        dstt_reset();
     }
 
-    // For certain chip types
-    void Write_Type_1(uint32_t offset, uint32_t length, const uint32_t* data)
+    void Program_Byte(uint32_t offset, uint8_t data)
     {
-        dstt_flash_command(0x86, 0, 0); // unsure if required
-
-        for (int i = 0; i < length; i+=4)
-        {
-            dstt_flash_command(0x87, offset, 0x50);
-            dstt_flash_command(0x87, offset, 0x40);
-            dstt_flash_command(0x87, offset, *data);
-    
-            while (!(dstt_flash_command(0, offset, 0) & 0x80));
-    
-            dstt_flash_command(0x87, offset, 0x50);
-            dstt_flash_command(0x87, offset, 0xFF);         
-
-            offset += 4;
-            data += 1;
-        }
-    }
-
-    void Program_Word(uint32_t offset, uint32_t data)
-    {
-        // Word:
         dstt_flash_command(0x87, 0x5555, 0xAA);        
         dstt_flash_command(0x87, 0x2AAA, 0x55);
         dstt_flash_command(0x87, 0x5555, 0xA0);        
         dstt_flash_command(0x87, offset, data);
 
-        // Byte: ???
-        // dstt_flash_command(0x87, 0xAAAA, 0xAA);        
-        // dstt_flash_command(0x87, 0x5555, 0x55);
-        // dstt_flash_command(0x87, 0xAAAA, 0xA0);        
-        // dstt_flash_command(0x87, offset, data);
+        while ((uint8_t)dstt_flash_command(0, offset, 0) != data);
 
-        // todo: add timeout
-        // also lots of weird shit to do if it's not aligned to 4 bytes
-        // while (dstt_flash_command(0, offset, 0) != data);
-
-        dstt_flash_command(0x87, 0x5555, 0xF0);
+        dstt_reset();
     }
 
 public:
@@ -155,14 +124,16 @@ public:
 
     bool initialize()
     {
+        dstt_flash_command(0x86, 0, 0);
+
         m_flashchip = get_flashchip_id();
-        ShowPrompt(BOTTOM_SCREEN, false, "Flashchip: %08x", m_flashchip);
         if (!flashchip_supported(m_flashchip))
             return false;
-
-        // debug atm
-        //if (m_flashchip != 0xBAC2)
-        //  return false;
+        
+        // only the BAC2 is supported atm - other flashchips have different flash commands
+        // and also different block sectors :s
+        if (m_flashchip != 0xBAC2)
+            return false;
 
         return true;
     }
@@ -174,8 +145,6 @@ public:
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
         uint32_t i = 0;
         uint32_t end_address = address + length;
-
-        dstt_flash_command(0x86, 0, 0);        
 
         while (address < end_address)
         {
@@ -193,57 +162,38 @@ public:
         return true;
     }
 
-    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {
-        // also todo.. read the flash before we overwrite
-        // todo: I know this works on the BAC2 chip, but we need a list
-        //Sector_Erase_W(address, length);
-        //Write_Type_1(address, length, (uint32_t*)buffer);
+    // todo: we're just assuming this is block (0x2000) aligned
+    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
+    {    
+        // really fucking temporary, writeFlash can only do full length writes
+        // todo: read and erase properly
+        Erase_Block(0x0000, 0x2000); // 0x2000
+        Erase_Block(0x2000, 0x1000); // 0x1000
+        Erase_Block(0x3000, 0x1000); // 0x1000
+        Erase_Block(0x4000, 0x4000); // 0x4000
+        Erase_Block(0x8000, 0x8000); // 0x8000
 
-        return false;
+        for(int i = 0; i < length; i++)
+            Program_Byte(address++, buffer[i]);
+
+        return true;
     }
 
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) {
-        // 0x0000:0x2000 = 0xFF
-        // 8192
+        // todo: we just read and write the entire flash chip because we don't align blocks
+        // properly, when writeFlash works, don't use memcpy
 
-        // Erase(0, 0x2000);
-        // Erase(0x2000, 0x1000);
-        // Erase(0x3000, 0x1000);
-        // Erase(0x4000, 0x4000);
-        // Erase(0x8000, 0x8000);
+        uint8_t* buffer = (uint8_t*)malloc(m_max_length);
+        readFlash(0, m_max_length, buffer);
 
-        Sector_Erase_W(0, 1);
+        memcpy(buffer + 0x1000, blowfish_key, 0x48);
+        memcpy(buffer + 0x2000, blowfish_key + 0x48, 0x1000);
+        memcpy(buffer + 0x7E00, firm, firm_size);
+        
+        writeFlash(0, m_max_length, buffer);
 
-        Program_Word(0,  0x10);
-        Program_Word(1,  0x11);
-        Program_Word(2,  0x12);
-        Program_Word(3,  0x12);
-        Program_Word(4,  0x20);
-        Program_Word(5,  0x21);
-        Program_Word(6,  0x22);
-        Program_Word(7,  0x23);
-        Program_Word(8,  0x30);
-        Program_Word(9,  0x31);
-        Program_Word(10,  0x32);
-        Program_Word(11,  0x33);
-        Program_Word(12, 0x40);
-        Program_Word(13, 0x41);
-        Program_Word(14, 0x42);
-        Program_Word(15, 0x43);
-
-        return false; // don't fuckin run this shit yet        
-
-        // DSTT Mirrors the flash, but only the second is used?
-        // Flash them both anyway
-        writeFlash(0x00000 + 0x1000, 0x48, blowfish_key);
-        writeFlash(0x00000 + 0x2000, 0x1000, blowfish_key + 0x48);
-        writeFlash(0x10000 + 0x1000, 0x48, blowfish_key);
-        writeFlash(0x10000 + 0x2000, 0x1000, blowfish_key + 0x48);
-
-        writeFlash(0x00000 + 0x7E00, firm_size, firm);
-        writeFlash(0x10000 + 0x7E00, firm_size, firm);
+        return true;
     }
-
 };
 
 DSTT dstt;
