@@ -39,6 +39,8 @@ Supported Chips using the same standard of command definitons (type A):
     0xC4C2: http://pdf1.alldatasheet.com/datasheet-pdf/view/113399/MCNIX/MX29LV160BT.html
     0xEF20: http://pdf1.alldatasheet.com/datasheet-pdf/view/23064/STMICROELECTRONICS/M29W400.html (16k bytes boot block)
 
+// Atmel AT49BV1614T-90TC (8x4K-Word Blocks, 16,16,32*)
+
 Different flash commands required (todo):
     0x912C: http://pdf.datasheetcatalog.com/datasheet/micron/MT28F160A3.pdf (8x4K-Word Blocks) (RA: X:0xFF) (PW: X:0x10/40 & WA:PD) (ER: X:0x20 & BA:0xD0)
     0x922C: http://www.dataman.com/media/datasheet/Micron/mt28f160c3_3.pdf (8x4K-Word Blocks) (similar/same to above)
@@ -95,6 +97,8 @@ Known flashchips that are "unsupported":
 */
 
 #include "device.h"
+
+#include "ui.h"
 
 #include <stdlib.h>
 #include <cstring>
@@ -269,6 +273,7 @@ public:
         dstt_flash_command(0x86, 0, 0);
 
         m_flashchip = get_flashchip_id();
+        ShowPrompt(BOTTOM_SCREEN, false, "Flashchip: %08x", m_flashchip);        
         if (!flashchip_supported(m_flashchip))
             return false;
 
