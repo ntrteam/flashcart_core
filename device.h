@@ -23,7 +23,7 @@ public:
     virtual bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) = 0;
 
     const char *getName() { return m_name; }
-    const size_t getMaxLength() { return m_max_length; }
+    virtual const size_t getMaxLength() { return m_max_length; }
 
 protected:
     const char* m_name;
