@@ -1,5 +1,6 @@
 #include "device.h"
 #include "delay.h"
+
 #include <stdlib.h>
 #include <cstring>
 
@@ -55,10 +56,9 @@ protected:
         else if (m_ak2i_hwrevision == 0x81818181)
         {
             memcpy(cmdbuf, ak2i_cmdEraseFlash81, 8);
-            cmdbuf[1] = (address >> 16) & 0xFF;            
+            cmdbuf[1] = (address >> 16) & 0xFF;                
         }
 
-        cmdbuf[1] = (address >> 16) & 0x1F;
         cmdbuf[2] = (address >>  8) & 0xFF;
         cmdbuf[3] = (address >>  0) & 0xFF;
 
@@ -149,7 +149,7 @@ public:
     {
         sendCommand(ak2i_cmdUnlockFlash, 0, nullptr);
         sendCommand(ak2i_cmdUnlockASIC, 0, nullptr);
-
+        
         if (m_ak2i_hwrevision == 0x81818181) sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr);
         sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr);
 
@@ -160,10 +160,10 @@ public:
         }
 
         for (uint32_t i=0; i < length; i++) {
-            a2ki_writebyte(i, buffer[i]);
+            a2ki_writebyte(address + i, buffer[i]);
             showProgress(i,length);
         }
-        
+
         return true;
     }
 
