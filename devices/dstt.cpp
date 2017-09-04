@@ -268,6 +268,9 @@ private:
 public:
     DSTT() : Flashcart("DSTT", 0x10000) { }
 
+    const char *getAuthor() { return "handsomematt"; }
+    const char *getDescription() { return "This will run on the official DSTT as\nwell as a lot of clones.\n\nIf yours doesn't work post the\nflashchip ID on GitHub issues."; }
+
     bool initialize()
     {
         dstt_flash_command(0x86, 0, 0);

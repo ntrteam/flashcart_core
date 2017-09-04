@@ -7,6 +7,10 @@ class Example : Flashcart {
         // Name & Size of Flash Memory
         Example() : Flashcart("Example Name", 0x400000) { }
 
+        const char* getAuthor() { return "your name"; }
+        const char* getDescription() { return "something helpful\nuse\newlines"; }
+    
+
         /*
         called when the user selects this flashcart
         return false to error
