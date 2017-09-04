@@ -276,7 +276,6 @@ public:
         dstt_flash_command(0x86, 0, 0);
 
         m_flashchip = get_flashchip_id();
-        ShowPrompt(BOTTOM_SCREEN, false, "Flashchip: %08x", m_flashchip);        
         if (!flashchip_supported(m_flashchip))
             return false;
 
