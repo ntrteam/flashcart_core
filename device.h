@@ -5,61 +5,35 @@
 #include <vector>
 
 using std::uint8_t;
+using std::uint16_t;
 using std::uint32_t;
-
-enum Flashcart_mode {
-    FLASH_READ,
-    FLASH_WRITE
-};
 
 // Utility -- s must be a power of two and have no side effects.
 #define PAGE_ROUND_UP(x, s) ( ((x) + (s)-1)  & (~((s)-1)) )
 
 class Flashcart {
-    public:
-        Flashcart();
-        virtual bool setup() = 0;
-        const char *getDescription() { return description; }
-        size_t getMaxLength() { return max_length; }
-        virtual void readFlash(uint32_t address, uint32_t length, uint8_t *buf);
-        virtual void writeFlash(uint32_t address, uint32_t length, const uint8_t *buf);
-        virtual void cleanup() = 0;
+public:
+    Flashcart(const char* name, const size_t max_length);
 
-        virtual void writeBlowfishAndFirm(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) = 0;
+    virtual bool initialize() = 0;
+    virtual void shutdown() = 0;
 
-        static uint32_t getHardwareVersion();
-        static uint32_t getChipID();
-        static Flashcart *detectCart();
+    virtual bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) = 0;
+    virtual bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) = 0;
+    virtual bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) = 0;
 
-    protected:
-        static void reset();
-        static void waitFlashBusy(); // This should be moved into device specific stuff.
-        virtual void eraseFlash(uint32_t address, uint32_t length);
+    const char *getName() { return m_name; }
+    virtual const char *getAuthor() { return "unknown"; }
+    virtual const char *getDescription() { return "N/A"; }
+    virtual const size_t getMaxLength() { return m_max_length; }
 
-        // Default is do-nothing.
-        virtual void switchMode(Flashcart_mode mode) { (void)mode; };
+protected:
+    const char* m_name;
+    const size_t m_max_length;
 
-        virtual size_t sendReadCommand(uint8_t *outbuf, uint32_t address) = 0;
-        virtual size_t sendEraseCommand(uint32_t address) = 0;
-        virtual size_t sendWriteByteCommand(uint32_t address, uint8_t value) = 0;
-        virtual uint32_t getLength(uint32_t length, uint32_t offset);
-
-        // platform specific! Find a better way to handle these.
-        static void platformInit();
-        static void sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, uint32_t flags=32);
-        static void showProgress(uint32_t current, uint32_t total);
-
-        size_t max_length;
-        uint32_t page_size;
-        const char *description;
-
-        static const uint8_t NTR_cmdDummy[8];
-        static const uint8_t NTR_cmdChipid[8];
-        static const uint8_t ak2i_cmdGetHWRevision[8];
-        static const uint8_t ak2i_cmdWaitFlashBusy[8];
-
-    private:
-        static Flashcart *detected_cache;
+    // override these in platform.cpp
+    static void sendCommand(const uint8_t *cmdbuff, uint16_t response_len, uint8_t *resp, uint32_t flags=32);
+    static void showProgress(uint32_t current, uint32_t total);
 };
 
 extern std::vector<Flashcart*> *flashcart_list;
