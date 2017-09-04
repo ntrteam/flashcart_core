@@ -6,24 +6,23 @@
 
 class AK2i : Flashcart {
 protected:
-    uint32_t m_ak2i_hwrevision;
-
     static const uint8_t ak2i_cmdWaitFlashBusy[8];
     static const uint8_t ak2i_cmdGetHWRevision[8];
-
     static const uint8_t ak2i_cmdSetMapTableAddress[8];
     static const uint8_t ak2i_cmdActiveFatMap[8];
     static const uint8_t ak2i_cmdUnlockFlash[8];
     static const uint8_t ak2i_cmdLockFlash[8];
     static const uint8_t ak2i_cmdUnlockASIC[8];
-
     static const uint8_t ak2i_cmdReadFlash[8];
     static const uint8_t ak2i_cmdEraseFlash[8];
     static const uint8_t ak2i_cmdWriteByteFlash[8];
-    
     static const uint8_t ak2i_cmdSetFlash1681_81[8];
     static const uint8_t ak2i_cmdEraseFlash81[8];
     static const uint8_t ak2i_cmdWriteByteFlash81[8];
+
+    static const uint32_t page_size = 0x10000;
+
+    uint32_t m_ak2i_hwrevision;    
 
     void a2ki_wait_flash_busy() {
         uint32_t state;
@@ -153,17 +152,15 @@ public:
         if (m_ak2i_hwrevision == 0x81818181) sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr);
         sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr);
 
-        for (uint32_t addr=0; addr < length; addr+=0x10000)
+        for (uint32_t addr=0; addr < length; addr+=page_size)
         {
             a2ki_erase(address + addr);  
 
-            for (uint32_t i=0; i < length; i++) {
+            for (uint32_t i=0; i < page_size; i++) {
                 a2ki_writebyte(address + addr + i, buffer[i]);
                 showProgress(addr+i,length);
             }
         }
-
-
 
         return true;
     }
@@ -178,11 +175,10 @@ public:
         const uint32_t firm_offset = 0x9E00;
         const uint32_t chipid_offset = 0x1FC0;
 
-        uint32_t buf_size = PAGE_ROUND_UP(firm_offset + firm_size, 0x10000);
+        uint32_t buf_size = PAGE_ROUND_UP(firm_offset + firm_size, page_size);
         uint8_t *buf = (uint8_t *)calloc(buf_size, sizeof(uint8_t));
 
         // readFlash(blowfish_adr, buf_size, buf); // Read in data that shouldn't be changed
-        // Forget R/M/W for now. Read is broken on hw44. Let's just make sure that what we're flashing is sane.
         memcpy(buf, blowfish_key, 0x1048);
         memcpy(buf + firm_offset, firm, firm_size);
 
@@ -205,7 +201,6 @@ const uint8_t AK2i::ak2i_cmdUnlockASIC[8] = {0xC2, 0xAA, 0x55, 0x55, 0xAA, 0x00,
 const uint8_t AK2i::ak2i_cmdReadFlash[8] = {0xB7, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00};
 const uint8_t AK2i::ak2i_cmdEraseFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00};
 const uint8_t AK2i::ak2i_cmdWriteByteFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00};
-
 const uint8_t AK2i::ak2i_cmdSetFlash1681_81[8] = {0xD8, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC6, 0x06};
 const uint8_t AK2i::ak2i_cmdEraseFlash81[8] = {0xD4, 0x00, 0x00, 0x00, 0x30, 0x80, 0x00, 0x35};
 const uint8_t AK2i::ak2i_cmdWriteByteFlash81[8] = {0xD4, 0x00, 0x00, 0x00, 0x30, 0xa0, 0x00, 0x63};
