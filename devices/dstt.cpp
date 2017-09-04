@@ -98,8 +98,6 @@ Known flashchips that are "unsupported":
 
 #include "device.h"
 
-#include "ui.h"
-
 #include <stdlib.h>
 #include <cstring>
 
