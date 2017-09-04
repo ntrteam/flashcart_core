@@ -134,7 +134,7 @@ public:
     {
         sendCommand(ak2i_cmdLockFlash, 0, nullptr);
 
-        if (m_ak2i_hwrevision == 0x81818181) sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr);        
+        if (m_ak2i_hwrevision == 0x81818181) sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr);
         sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr);
     
         for (uint32_t curpos=0; curpos < length; curpos+=0x200) {
@@ -155,14 +155,15 @@ public:
 
         for (uint32_t addr=0; addr < length; addr+=0x10000)
         {
-            a2ki_erase(address + addr);            
-            showProgress(addr, length);
+            a2ki_erase(address + addr);  
+
+            for (uint32_t i=0; i < length; i++) {
+                a2ki_writebyte(address + addr + i, buffer[i]);
+                showProgress(addr+i,length);
+            }
         }
 
-        for (uint32_t i=0; i < length; i++) {
-            a2ki_writebyte(address + i, buffer[i]);
-            showProgress(i,length);
-        }
+
 
         return true;
     }
