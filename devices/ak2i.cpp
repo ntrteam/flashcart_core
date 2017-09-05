@@ -160,7 +160,7 @@ public:
             a2ki_erase(address + addr);  
 
             for (uint32_t i=0; i < page_size; i++) {
-                a2ki_writebyte(address + addr + i, buffer[i]);
+                a2ki_writebyte(address + addr + i, buffer[addr + i]);
                 showProgress(addr+i,length, "Writing");
             }
         }
