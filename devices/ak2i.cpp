@@ -90,6 +90,9 @@ protected:
 public:
     AK2i() : Flashcart("Acekard 2i", 0x200000) { }
 
+    const char *getAuthor() { return "kitling + normmatt"; }
+    const char *getDescription() { return "Works with the following carts:\n * Acekard 2i HW-44\n * Acekard 2i HW-81\n * R4i Ultra (r4ultra.com)"; }
+
     const size_t getMaxLength()
     {
         if (m_ak2i_hwrevision == 0x44444444) return 0x200000;
@@ -138,7 +141,7 @@ public:
     
         for (uint32_t curpos=0; curpos < length; curpos+=0x200) {
             a2ki_read(buffer + curpos, address + curpos);
-            showProgress(curpos,length);
+            showProgress(curpos,length, "Reading");
         }
         
         return true;
@@ -158,7 +161,7 @@ public:
 
             for (uint32_t i=0; i < page_size; i++) {
                 a2ki_writebyte(address + addr + i, buffer[i]);
-                showProgress(addr+i,length);
+                showProgress(addr+i,length, "Writing");
             }
         }
 

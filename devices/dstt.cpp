@@ -267,7 +267,7 @@ public:
     DSTT() : Flashcart("DSTT", 0x10000) { }
 
     const char *getAuthor() { return "handsomematt"; }
-    const char *getDescription() { return "This will run on the official DSTT as\nwell as a lot of clones.\n\nIf yours doesn't work post the\nflashchip ID on GitHub issues."; }
+    const char *getDescription() { return "This will run on the official DSTT as well as a lot of clones.\n\nCheck the README.md for further details."; }
 
     bool initialize()
     {
@@ -291,7 +291,7 @@ public:
         while (address < end_address)
         {
             uint32_t data = dstt_flash_command(0, address, 0);
-            showProgress(address, end_address);
+            showProgress(address, end_address, "Reading");
             
             buffer[i++] = (uint8_t)((data >> 0) & 0xFF);
             buffer[i++] = (uint8_t)((data >> 8) & 0xFF);
@@ -312,7 +312,10 @@ public:
         Erase_Chip();
 
         for(int i = 0; i < length; i++)
+        {
             Program_Byte(address++, buffer[i]);
+            showProgress(i, length, "Writing");
+        }
 
         return true;
     }
