@@ -24,7 +24,7 @@ public:
 
     const char *getName() { return m_name; }
     virtual const char *getAuthor() { return "unknown"; }
-    virtual const char *getDescription() { return "N/A"; }
+    virtual const char *getDescription() { return ""; }
     virtual const size_t getMaxLength() { return m_max_length; }
 
 protected:
@@ -33,7 +33,7 @@ protected:
 
     // override these in platform.cpp
     static void sendCommand(const uint8_t *cmdbuff, uint16_t response_len, uint8_t *resp, uint32_t flags=32);
-    static void showProgress(uint32_t current, uint32_t total);
+    static void showProgress(uint32_t current, uint32_t total, const char* status_string);
 };
 
 extern std::vector<Flashcart*> *flashcart_list;
