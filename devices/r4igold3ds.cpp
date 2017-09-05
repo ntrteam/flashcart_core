@@ -85,6 +85,7 @@ protected:
     static const uint8_t cmdWriteByteFlash[8];
 public:
     R4i_Gold_3DS() : Flashcart("R4i Gold 3DS", 0x400000) { }
+    const char *getAuthor() { return "kitling"; }
 
     bool initialize()
     {
@@ -100,7 +101,7 @@ public:
     {
         for (uint32_t curpos=0; curpos < length; curpos+=0x200) {
             r4i_read(buffer + curpos, address + curpos);
-            showProgress(curpos,length);
+            showProgress(curpos,length, "Reading");
         }
 
         return true;
@@ -113,7 +114,7 @@ public:
 
         for (uint32_t i=0; i < length; i++) {
             r4i_writebyte(address + i, buffer[i]);
-            showProgress(i,length);
+            showProgress(i,length, "Writing");
         }
 
         return true;
