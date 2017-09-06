@@ -20,7 +20,9 @@ Supported Chips using the same standard of command definitons (type A):
     0x49C2: http://pdf1.alldatasheet.com/datasheet-pdf/view/113400/MCNIX/MX29LV160BB.html
     0x5BC2: http://www.dataman.com/media/datasheet/Macronix/MX29LV800B-T.pdf
     0x80BF: http://www.metatech.com.hk/datasheet/sst/standard_mem_pdf/360-39LF-VFx00A-3-DS.pdf (29 blocks of 2048 bytes)
-    0x9B37: AMIC A29L800U    
+    0x9020: ST M28W160(B)T - http://pdf.datasheetcatalog.com/datasheet/stmicroelectronics/6680.pdf
+    0x9120: ST M28W160(B)B - http://pdf.datasheetcatalog.com/datasheet/stmicroelectronics/6680.pdf
+    0x9B37: AMIC A29L800U 
     0xA01F: http://pdf1.alldatasheet.com/datasheet-pdf/view/56175/ATMEL/AT49BV8192.html (16K bytes boot block) (Two 16K bytes param blocks) (976K bytes main memory)
     0xA31F: http://pdf1.alldatasheet.com/datasheet-pdf/view/56175/ATMEL/AT49BV8192.html (same as above pretty much)
     0xA7C2: http://nice.kaze.com/MX29LV320.pdf (8x4K-Word blocks)
@@ -39,18 +41,14 @@ Supported Chips using the same standard of command definitons (type A):
     0xC4C2: http://pdf1.alldatasheet.com/datasheet-pdf/view/113399/MCNIX/MX29LV160BT.html
     0xEF20: http://pdf1.alldatasheet.com/datasheet-pdf/view/23064/STMICROELECTRONICS/M29W400.html (16k bytes boot block)
 
-// Atmel AT49BV1614T-90TC (8x4K-Word Blocks, 16,16,32*)
-
 Different flash commands required (todo):
+    0x49B0: SHARP LH28F160BGHB-BTL - http://pdf.datasheetcatalog.com/datasheet_pdf/sharp/LH28F160BGB-BTL10_to_LH28F160BGR-TTL12.pdf (8*4K-Word Blocks)
     0x912C: http://pdf.datasheetcatalog.com/datasheet/micron/MT28F160A3.pdf (8x4K-Word Blocks) (RA: X:0xFF) (PW: X:0x10/40 & WA:PD) (ER: X:0x20 & BA:0xD0)
     0x922C: http://www.dataman.com/media/datasheet/Micron/mt28f160c3_3.pdf (8x4K-Word Blocks) (similar/same to above)
     0x9320: http://pdf.datasheetcatalog.com/datasheet/stmicroelectronics/7585.pdf (8x4K-Word Blocks) (^)   
 
 Unknown datasheets but *SHOULD* "supported" Flashchip IDs:
-    0x49B0: SHARP LH28F160BGHB-BTL (can't find datasheet)
-    0x9020: ST M28W160(B)T (can't find datasheet)
     0x9089: INTEL 28F160B3T (can't find specific datasheet)
-    0x9120: ST M28W160(B)B (can't find datasheet)
     0x9189: INTEL 28F160B3B (can't find specific datasheet)
     0x9289: INTEL 28F800B3T (can't find specific datasheet)
     0x9389: INTEL 28F800B3B (can't find specific datasheet)
@@ -102,9 +100,9 @@ Known flashchips that are "unsupported":
 #include <cstring>
 
 const uint16_t supported_flashchips[] = {
-    0x041F, 0x051F, 0x1A37, 0x3437, 0x49C2, 0x5BC2, 0x80BF, 0xA01F, 0xA31F, 0xA7C2, 0xA8C2, 0xBA01, 0xBA04,
-    0xBA1C, 0xBA4A, 0xBAC2, 0xB91C, 0xC11F, 0xC298, 0xC31F, 0xC420, 0xC4C2, 0xEF20,
-    0x9B37, 0xB537
+    0x041F, 0x051F, 0x1A37, 0x3437, 0x49C2, 0x5BC2, 0x80BF, 0x9020, 0x9120, 0x9B37,
+    0xA01F, 0xA31F, 0xA7C2, 0xA8C2, 0xBA01, 0xBA04, 0xBA1C, 0xBA4A, 0xBAC2, 0xB537,
+    0xB91C, 0xC11F, 0xC298, 0xC31F, 0xC420, 0xC4C2, 0xEF20
 };
 
 // Header: TOP TF/SD DSTTDS
@@ -231,6 +229,8 @@ private:
 
             case 0x49C2:
             case 0x5BC2:
+            case 0x9020:
+            case 0x9120:
             case 0x9B37: // no datasheet
             case 0xA8C2:
             case 0xB537: // no datasheet
