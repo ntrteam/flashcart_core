@@ -40,7 +40,9 @@ Define `Flashcart::platformInit`, `Flashcart::sendCommand`, and `Flashcart::show
  - Size and cluster size (for erasing) of flash.
  - Commands for reading flash, erasing flash, and writing flash.
 
-TODO
+## Licensing
+This software is licensed under the terms of the GPLv3.
+You can find a copy of the license in the LICENSE file.
 
 ## Credits
 [@Normmatt](https://github.com/Normmatt) for bug squashing, expertiese... etc.  

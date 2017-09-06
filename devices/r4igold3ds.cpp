@@ -1,4 +1,5 @@
 #include "device.h"
+#include "delay.h"
 
 #include <cstring>
 #include <algorithm>
@@ -49,6 +50,7 @@ private:
         cmdbuf[3] = (address >>  0) & 0xFF;
 
         sendCommand(cmdbuf, 0x200, outbuf); // TODO: Add actual flags.
+        r4i_wait_flash_busy();
     }
 
     uint32_t r4i_erase(uint32_t address)
@@ -61,6 +63,7 @@ private:
         cmdbuf[3] = (address >>  0) & 0xFF;
 
         sendCommand(cmdbuf, 4, (uint8_t*)&status); // TODO: Add actual flags.
+        r4i_wait_flash_busy();
     }
 
     void r4i_writebyte(uint32_t address, uint8_t value)
@@ -74,6 +77,15 @@ private:
         cmdbuf[4] = value;
 
         sendCommand(cmdbuf, 4, (uint8_t*)&status); // TODO: Add actual flags.
+        r4i_wait_flash_busy();
+    }
+
+    void r4i_wait_flash_busy() {
+        uint32_t state;
+        do {
+            ioDelay( 16 * 10 );
+            sendCommand(cmdWaitFlashBusy, 4, (uint8_t *)&state);
+        } while ((state & 1) != 0);
     }
 
 protected:
@@ -83,9 +95,12 @@ protected:
     static const uint8_t cmdReadFlash[8];
     static const uint8_t cmdEraseFlash[8];
     static const uint8_t cmdWriteByteFlash[8];
+    static const uint8_t cmdWaitFlashBusy[8];
 public:
     R4i_Gold_3DS() : Flashcart("R4i Gold 3DS", 0x400000) { }
+
     const char *getAuthor() { return "kitling"; }
+    const char *getDescription() { return "Works with many R4i Gold 3DS variants:\n * R4i Gold 3DS (RTS, rev A5/A6/A7) (r4ids.cn)\n * R4i Gold 3DS Starter (r4ids.cn)\n * R4 3D Revolution (r4idsn.com)\n * Infinity 3 R4i (r4infinity.com)"; }
 
     bool initialize()
     {
@@ -149,5 +164,6 @@ const uint8_t R4i_Gold_3DS::cmdGetHWRevision[8] = {0xD1, 0x00, 0x00, 0x00, 0x00,
 const uint8_t R4i_Gold_3DS::cmdReadFlash[8] = {0xA5, 0x00, 0x00, 0x00, 0x00, 0x5A, 0x00, 0x00};
 const uint8_t R4i_Gold_3DS::cmdEraseFlash[8] = {0xDA, 0x00, 0x00, 0x00, 0x00, 0xA5, 0x00, 0x00};
 const uint8_t R4i_Gold_3DS::cmdWriteByteFlash[8] = {0xDA, 0x00, 0x00, 0x00, 0x00, 0x5A, 0x00, 0x00};
+const uint8_t R4i_Gold_3DS::cmdWaitFlashBusy[8] = {0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 R4i_Gold_3DS r4i_gold_3ds;
