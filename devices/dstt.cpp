@@ -42,11 +42,13 @@ Supported Chips using the same standard of command definitons (type A):
     0xEE20  http://pdf.datasheetcatalog.com/datasheet/SGSThomsonMicroelectronics/mXttvuu.pdf    
     0xEF20: http://pdf1.alldatasheet.com/datasheet-pdf/view/23064/STMICROELECTRONICS/M29W400.html (16k bytes boot block)
 
-Different flash commands required (todo):
+Supported but untested, non standard flash commands:
     0x49B0: SHARP LH28F160BGHB-BTL - http://pdf.datasheetcatalog.com/datasheet_pdf/sharp/LH28F160BGB-BTL10_to_LH28F160BGR-TTL12.pdf (8*4K-Word Blocks)
     0x912C: http://pdf.datasheetcatalog.com/datasheet/micron/MT28F160A3.pdf (8x4K-Word Blocks) (RA: X:0xFF) (PW: X:0x10/40 & WA:PD) (ER: X:0x20 & BA:0xD0)
     0x922C: http://www.dataman.com/media/datasheet/Micron/mt28f160c3_3.pdf (8x4K-Word Blocks) (similar/same to above)
     0x9320: http://pdf.datasheetcatalog.com/datasheet/stmicroelectronics/7585.pdf (8x4K-Word Blocks) (^)   
+    0x9489 "INTEL 28F400B3T" has code
+    0x9589 "INTEL 28F400B3B" has code
 
 Unknown datasheets but *SHOULD* "supported" Flashchip IDs:
     0x9089: INTEL 28F160B3T (can't find specific datasheet)
@@ -69,8 +71,6 @@ Known flashchips that are "unsupported":
     0x902C "MICRON MT28F160A3-T"
     0x9220 "ST M28W800BT"
     0x932C "MICRON MT28F160C3(4)-B"
-    0x9489 "INTEL 28F400B3T"
-    0x9589 "INTEL 28F400B3B"
     0xABAD "BRIGHT MICRO. BM29LV400B"
     0xB901 "SPANSION Am29LV400BT"
     0xB904 "SPANSION MBM29LV400TC"
@@ -102,7 +102,10 @@ Known flashchips that are "unsupported":
 const uint16_t supported_flashchips[] = {
     0x041F, 0x051F, 0x1A37, 0x3437, 0x49C2, 0x5BC2, 0x80BF, 0x9020, 0x9120, 0x9B37,
     0xA01F, 0xA31F, 0xA7C2, 0xA8C2, 0xBA01, 0xBA04, 0xBA1C, 0xBA4A, 0xBAC2, 0xB537,
-    0xB91C, 0xC11F, 0xC298, 0xC31F, 0xC420, 0xC4C2, 0xEE20, 0xEF20
+    0xB91C, 0xC11F, 0xC298, 0xC31F, 0xC420, 0xC4C2, 0xEE20, 0xEF20,
+
+    // untested "other" types:
+    0x49B0, 0x912C, 0x922C, 0x9320, 0x9589, 0x9789
 };
 
 // Header: TOP TF/SD DSTTDS
@@ -132,7 +135,20 @@ private:
 
     void dstt_reset()
     {
-        dstt_flash_command(0x87, 0, 0xF0);
+        switch(m_flashchip)
+        {
+            case 0x49B0:
+            case 0x912C:
+            case 0x922C:
+            case 0x9320:            
+            case 0x9589:            
+            case 0x9789:
+                dstt_flash_command(0x87, 0, 0xFF);        
+                break;
+            default:
+                dstt_flash_command(0x87, 0, 0xF0);            
+                break;
+        }
     }
 
     uint32_t get_flashchip_id()
@@ -190,6 +206,25 @@ private:
         dstt_reset();
     }
 
+    void Erase_Block_Type2(uint32_t offset, uint32_t length)
+    {
+        dstt_flash_command(0x87, offset, 0x50); // Clear Status Register
+        dstt_flash_command(0x87, offset, 0x20); // Block Erase 1
+        dstt_flash_command(0x87, offset, 0xD0); // Block Erase 2
+        
+        while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
+
+        dstt_flash_command(0x87, offset, 0x50); // Clear Status Register
+        dstt_flash_command(0x87, offset, 0xFF); // Reset        
+
+        uint32_t end_offset = offset + length;
+        while (offset < end_offset)
+        {
+            while (dstt_flash_command(0, offset, 0) != 0xFFFFFFFF);
+            offset += 4;
+        }
+    }
+
     void Erase_Chip()
     {
         switch(m_flashchip)
@@ -227,6 +262,23 @@ private:
                 Erase_Block(0xC000, 0x4000);
                 break;
 
+            case 0x49B0:
+            case 0x912C:
+            case 0x922C:
+            case 0x9320:            
+            case 0x9589:            
+            case 0x9789:
+                Erase_Block_Type2(0, 0x1000);
+                Erase_Block_Type2(0x1000, 0x1000);
+                Erase_Block_Type2(0x2000, 0x1000);
+                Erase_Block_Type2(0x3000, 0x1000);
+                Erase_Block_Type2(0x4000, 0x1000);
+                Erase_Block_Type2(0x5000, 0x1000);
+                Erase_Block_Type2(0x6000, 0x1000);
+                Erase_Block_Type2(0x7000, 0x1000);
+                Erase_Block_Type2(0x8000, 0x8000);
+                break;
+
             case 0x49C2:
             case 0x5BC2:
             case 0x9020:
@@ -251,17 +303,37 @@ private:
         }
     }
 
+    // pretty messy function, but gets the job done
     void Program_Byte(uint32_t offset, uint8_t data)
     {
-        // todo: I think this is actually word write (which is 16 bits on these flash chips)
-        dstt_flash_command(0x87, 0x5555, 0xAA); 
-        dstt_flash_command(0x87, 0x2AAA, 0x55);
-        dstt_flash_command(0x87, 0x5555, 0xA0);        
-        dstt_flash_command(0x87, offset, data);
-
-        while ((uint8_t)dstt_flash_command(0, offset, 0) != data);
-
-        dstt_reset();
+        switch(m_flashchip)
+        {
+            case 0x49B0:
+            case 0x912C:
+            case 0x922C:
+            case 0x9320:            
+            case 0x9589:            
+            case 0x9789:
+                dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
+                dstt_flash_command(0x87, offset, 0x40); // Word Write
+                dstt_flash_command(0x87, offset, data);
+        
+                while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
+        
+                dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
+                dstt_flash_command(0x87, offset, 0xFF); // Reset (offset not required)
+                break;
+            default:
+                dstt_flash_command(0x87, 0x5555, 0xAA); 
+                dstt_flash_command(0x87, 0x2AAA, 0x55);
+                dstt_flash_command(0x87, 0x5555, 0xA0);        
+                dstt_flash_command(0x87, offset, data);
+        
+                while ((uint8_t)dstt_flash_command(0, offset, 0) != data);
+        
+                dstt_reset();
+                break;
+        }
     }
 
 public:
@@ -286,6 +358,8 @@ public:
     }
     
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
+        dstt_reset();
+
         uint32_t i = 0;
         uint32_t end_address = address + length;
 
