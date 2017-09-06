@@ -399,6 +399,10 @@ public:
         // todo: we just read and write the entire flash chip because we don't align blocks
         // properly, when writeFlash works, don't use memcpy
 
+        // don't bother installing if we can't fit
+        if (firm_size > m_max_length - 0x7E00)
+            return false; // todo: return error code
+
         uint8_t* buffer = (uint8_t*)malloc(m_max_length);
         readFlash(0, m_max_length, buffer);
 
