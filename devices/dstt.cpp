@@ -46,15 +46,13 @@ Supported but untested, non standard flash commands:
     0x49B0: SHARP LH28F160BGHB-BTL - http://pdf.datasheetcatalog.com/datasheet_pdf/sharp/LH28F160BGB-BTL10_to_LH28F160BGR-TTL12.pdf (8*4K-Word Blocks)
     0x912C: http://pdf.datasheetcatalog.com/datasheet/micron/MT28F160A3.pdf (8x4K-Word Blocks) (RA: X:0xFF) (PW: X:0x10/40 & WA:PD) (ER: X:0x20 & BA:0xD0)
     0x922C: http://www.dataman.com/media/datasheet/Micron/mt28f160c3_3.pdf (8x4K-Word Blocks) (similar/same to above)
-    0x9320: http://pdf.datasheetcatalog.com/datasheet/stmicroelectronics/7585.pdf (8x4K-Word Blocks) (^)   
-    0x9489 "INTEL 28F400B3T" has code
-    0x9589 "INTEL 28F400B3B" has code
-
-Unknown datasheets but *SHOULD* "supported" Flashchip IDs:
+    0x9320: http://pdf.datasheetcatalog.com/datasheet/stmicroelectronics/7585.pdf (8x4K-Word Blocks) (^)
     0x9089: INTEL 28F160B3T (can't find specific datasheet)
     0x9189: INTEL 28F160B3B (can't find specific datasheet)
     0x9289: INTEL 28F800B3T (can't find specific datasheet)
     0x9389: INTEL 28F800B3B (can't find specific datasheet)
+    0x9489 INTEL 28F400B3T (can't find specific datasheet)
+    0x9589 INTEL 28F400B3B (can't find specific datasheet)
     0x9689: INTEL 28F320B3T (can't find specific datasheet)
     0x9789: INTEL 28F320B3B (can't find specific datasheet)
 
@@ -105,7 +103,8 @@ const uint16_t supported_flashchips[] = {
     0xB91C, 0xC11F, 0xC298, 0xC31F, 0xC420, 0xC4C2, 0xEE20, 0xEF20,
 
     // untested "other" types:
-    0x49B0, 0x912C, 0x922C, 0x9320, 0x9589, 0x9789
+    0x49B0, 0x9089, 0x912C, 0x9189, 0x922C, 0x9289, 0x9320, 0x9389, 0x9489, 0x9589,
+    0x9689, 0x9789
 };
 
 // Header: TOP TF/SD DSTTDS
@@ -138,10 +137,16 @@ private:
         switch(m_flashchip)
         {
             case 0x49B0:
+            case 0x9089:
             case 0x912C:
+            case 0x9189:
             case 0x922C:
-            case 0x9320:            
+            case 0x9289:
+            case 0x9320:
+            case 0x9389:
+            case 0x9489:
             case 0x9589:            
+            case 0x9689:
             case 0x9789:
                 dstt_flash_command(0x87, 0, 0xFF);        
                 break;
@@ -264,9 +269,11 @@ private:
 
             case 0x49B0:
             case 0x912C:
+            case 0x9189:
             case 0x922C:
-            case 0x9320:            
-            case 0x9589:            
+            case 0x9320:
+            case 0x9389:
+            case 0x9589:
             case 0x9789:
                 Erase_Block_Type2(0, 0x1000);
                 Erase_Block_Type2(0x1000, 0x1000);
@@ -277,6 +284,21 @@ private:
                 Erase_Block_Type2(0x6000, 0x1000);
                 Erase_Block_Type2(0x7000, 0x1000);
                 Erase_Block_Type2(0x8000, 0x8000);
+                break;
+
+            case 0x9089: 
+            case 0x9289:
+            case 0x9489:
+            case 0x9689:
+                Erase_Block_Type2(0, 0x8000);
+                Erase_Block_Type2(0x8000, 0x1000);
+                Erase_Block_Type2(0x9000, 0x1000);
+                Erase_Block_Type2(0xA000, 0x1000);
+                Erase_Block_Type2(0xB000, 0x1000);
+                Erase_Block_Type2(0xC000, 0x1000);
+                Erase_Block_Type2(0xD000, 0x1000);
+                Erase_Block_Type2(0xE000, 0x1000);
+                Erase_Block_Type2(0xF000, 0x1000);
                 break;
 
             case 0x49C2:
@@ -309,10 +331,16 @@ private:
         switch(m_flashchip)
         {
             case 0x49B0:
+            case 0x9089:
             case 0x912C:
+            case 0x9189:
             case 0x922C:
-            case 0x9320:            
-            case 0x9589:            
+            case 0x9289:
+            case 0x9320:
+            case 0x9389:
+            case 0x9489:
+            case 0x9689:
+            case 0x9589:
             case 0x9789:
                 dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
                 dstt_flash_command(0x87, offset, 0x40); // Word Write
