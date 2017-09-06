@@ -98,7 +98,9 @@ protected:
     static const uint8_t cmdWaitFlashBusy[8];
 public:
     R4i_Gold_3DS() : Flashcart("R4i Gold 3DS", 0x400000) { }
+
     const char *getAuthor() { return "kitling"; }
+    const char *getDescription() { return "Works with many R4i Gold 3DS variants:\n * R4i Gold 3DS (RTS, rev A5/A6/A7) (r4ids.cn)\n * R4i Gold 3DS Starter (r4ids.cn)\n * R4 3D Revolution (r4idsn.com)\n * Infinity 3 R4i (r4infinity.com)"; }
 
     bool initialize()
     {
