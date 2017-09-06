@@ -267,7 +267,7 @@ public:
     DSTT() : Flashcart("DSTT", 0x10000) { }
 
     const char *getAuthor() { return "handsomematt"; }
-    const char *getDescription() { return "This will run on the official DSTT as well as a lot of clones.\n\nCheck the README.md for further details."; }
+    const char *getDescription() { return "This will run on the official DSTT as well as a\nlot of clones.\n\nCheck the README.md for further details."; }
 
     bool initialize()
     {
