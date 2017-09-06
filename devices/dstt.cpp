@@ -39,6 +39,7 @@ Supported Chips using the same standard of command definitons (type A):
     0xC31F: http://datasheetz.com/data/Integrated%20Circuits%20(ICs)/Memory/AT49BV802AT-70TI-datasheetz.html (8x4K-Word Blocks) (Writing slightly differs: see page 13 (uses AAA instead of 2AA?))
     0xC420: http://pdf.datasheetcatalog.com/datasheet/stmicroelectronics/6680.pdf
     0xC4C2: http://pdf1.alldatasheet.com/datasheet-pdf/view/113399/MCNIX/MX29LV160BT.html
+    0xEE20  http://pdf.datasheetcatalog.com/datasheet/SGSThomsonMicroelectronics/mXttvuu.pdf    
     0xEF20: http://pdf1.alldatasheet.com/datasheet-pdf/view/23064/STMICROELECTRONICS/M29W400.html (16k bytes boot block)
 
 Different flash commands required (todo):
@@ -91,7 +92,6 @@ Known flashchips that are "unsupported":
     0xD720 "ST M29W800AT"
     0xD789 "INTEL 28F032B3B"
     0xDAC2 "MACRONIX MX29LV800T"
-    0xEE20 "ST M29W400T"
 */
 
 #include "device.h"
@@ -102,7 +102,7 @@ Known flashchips that are "unsupported":
 const uint16_t supported_flashchips[] = {
     0x041F, 0x051F, 0x1A37, 0x3437, 0x49C2, 0x5BC2, 0x80BF, 0x9020, 0x9120, 0x9B37,
     0xA01F, 0xA31F, 0xA7C2, 0xA8C2, 0xBA01, 0xBA04, 0xBA1C, 0xBA4A, 0xBAC2, 0xB537,
-    0xB91C, 0xC11F, 0xC298, 0xC31F, 0xC420, 0xC4C2, 0xEF20
+    0xB91C, 0xC11F, 0xC298, 0xC31F, 0xC420, 0xC4C2, 0xEE20, 0xEF20
 };
 
 // Header: TOP TF/SD DSTTDS
@@ -239,6 +239,7 @@ private:
             case 0xBA1C:
             case 0xBA4A:            
             case 0xBAC2:
+            case 0xEE20:
             case 0xEF20:
             default:
                 Erase_Block(0x0000, 0x2000);
