@@ -49,7 +49,7 @@ private:
         cmdbuf[2] = (address >>  8) & 0xFF;
         cmdbuf[3] = (address >>  0) & 0xFF;
 
-        sendCommand(cmdbuf, 0x200, outbuf); // TODO: Add actual flags.
+        sendCommand(cmdbuf, 0x200, outbuf, 32);
         r4i_wait_flash_busy();
     }
 
@@ -62,7 +62,7 @@ private:
         cmdbuf[2] = (address >>  8) & 0xFF;
         cmdbuf[3] = (address >>  0) & 0xFF;
 
-        sendCommand(cmdbuf, 4, (uint8_t*)&status); // TODO: Add actual flags.
+        sendCommand(cmdbuf, 4, (uint8_t*)&status, 32);
         r4i_wait_flash_busy();
     }
 
@@ -76,7 +76,7 @@ private:
         cmdbuf[3] = (address >>  0) & 0xFF;
         cmdbuf[4] = value;
 
-        sendCommand(cmdbuf, 4, (uint8_t*)&status); // TODO: Add actual flags.
+        sendCommand(cmdbuf, 4, (uint8_t*)&status, 32);
         r4i_wait_flash_busy();
     }
 
@@ -84,7 +84,7 @@ private:
         uint32_t state;
         do {
             ioDelay( 16 * 10 );
-            sendCommand(cmdWaitFlashBusy, 4, (uint8_t *)&state);
+            sendCommand(cmdWaitFlashBusy, 4, (uint8_t *)&state, 32);
         } while ((state & 1) != 0);
     }
 
@@ -104,14 +104,14 @@ public:
 
     bool initialize()
     {
-        sendCommand(cmdGetHWRevision, 4, (uint8_t*)&m_hwrevision);
+        sendCommand(cmdGetHWRevision, 4, (uint8_t*)&m_hwrevision, 0);
         if (m_hwrevision != 0xA7A7A7A7 && m_hwrevision != 0xA6A6A6A6 && m_hwrevision != 0xA5A5A5A5) return false;
 
         return true;
     }
-    
+
     void shutdown() { }
-    
+
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer)
     {
         for (uint32_t curpos=0; curpos < length; curpos+=0x200) {

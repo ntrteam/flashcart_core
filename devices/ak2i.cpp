@@ -22,13 +22,13 @@ protected:
 
     static const uint32_t page_size = 0x10000;
 
-    uint32_t m_ak2i_hwrevision;    
+    uint32_t m_ak2i_hwrevision;
 
     void a2ki_wait_flash_busy() {
         uint32_t state;
         do {
             ioDelay( 16 * 10 );
-            sendCommand(ak2i_cmdWaitFlashBusy, 4, (uint8_t *)&state);
+            sendCommand(ak2i_cmdWaitFlashBusy, 4, (uint8_t *)&state, 4);
         } while ((state & 1) != 0);
     }
 
@@ -40,7 +40,7 @@ protected:
         cmdbuf[3] = (address >>  8) & 0xFF;
         cmdbuf[4] = (address >>  0) & 0xFF;
 
-        sendCommand(cmdbuf, 0x200, outbuf); // TODO: Add actual flags.
+        sendCommand(cmdbuf, 0x200, outbuf, 2);
         a2ki_wait_flash_busy();
     }
 
@@ -55,13 +55,13 @@ protected:
         else if (m_ak2i_hwrevision == 0x81818181)
         {
             memcpy(cmdbuf, ak2i_cmdEraseFlash81, 8);
-            cmdbuf[1] = (address >> 16) & 0xFF;                
+            cmdbuf[1] = (address >> 16) & 0xFF;
         }
 
         cmdbuf[2] = (address >>  8) & 0xFF;
         cmdbuf[3] = (address >>  0) & 0xFF;
 
-        sendCommand(cmdbuf, 0, nullptr); // TODO: Add actual flags.
+        sendCommand(cmdbuf, 0, nullptr, (m_ak2i_hwrevision == 0x81818181) ? 20 : 0 );
         a2ki_wait_flash_busy();
     }
 
@@ -76,14 +76,14 @@ protected:
         else if (m_ak2i_hwrevision == 0x81818181)
         {
             memcpy(cmdbuf, ak2i_cmdWriteByteFlash81, 8);
-            cmdbuf[1] = (address >> 16) & 0xFF;            
+            cmdbuf[1] = (address >> 16) & 0xFF;
         }
 
         cmdbuf[2] = (address >>  8) & 0xFF;
         cmdbuf[3] = (address >>  0) & 0xFF;
         cmdbuf[4] = value;
 
-        sendCommand(cmdbuf, 0, nullptr); // TODO: Add actual flags.
+        sendCommand(cmdbuf, 0, nullptr, 20);
         a2ki_wait_flash_busy();
     }
 
@@ -102,62 +102,62 @@ public:
 
     bool initialize()
     {
-        sendCommand(ak2i_cmdGetHWRevision, 4, (uint8_t*)&m_ak2i_hwrevision);
+        sendCommand(ak2i_cmdGetHWRevision, 4, (uint8_t*)&m_ak2i_hwrevision, 0);
         if (m_ak2i_hwrevision != 0x44444444 && m_ak2i_hwrevision != 0x81818181) return false;
 
-        uint32_t garbage;        
+        uint32_t garbage;
         if (m_ak2i_hwrevision == 0x44444444)
         {
-            sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr);
-            sendCommand(ak2i_cmdActiveFatMap, 4, (uint8_t*)&garbage);
-            sendCommand(ak2i_cmdUnlockASIC, 0, nullptr);
+            sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr, 0);
+            sendCommand(ak2i_cmdActiveFatMap, 4, (uint8_t*)&garbage, 0);
+            sendCommand(ak2i_cmdUnlockASIC, 0, nullptr, 0);
         }
         else if (m_ak2i_hwrevision == 0x81818181)
         {
-            sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr);
-            sendCommand(ak2i_cmdActiveFatMap, 4, (uint8_t*)&garbage);
-            sendCommand(ak2i_cmdUnlockFlash, 0, nullptr);
-            sendCommand(ak2i_cmdUnlockASIC, 0, nullptr);
-            sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr);
+            sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr, 20);
+            sendCommand(ak2i_cmdActiveFatMap, 4, (uint8_t*)&garbage, 0);
+            sendCommand(ak2i_cmdUnlockFlash, 0, nullptr, 0);
+            sendCommand(ak2i_cmdUnlockASIC, 0, nullptr, 0);
+            sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr, 0);
         }
-        
+
         return true;
     }
 
     void shutdown()
     {
         uint32_t garbage;
-        sendCommand(ak2i_cmdLockFlash, 0, nullptr);
-        sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr);
-        sendCommand(ak2i_cmdActiveFatMap, 4, (uint8_t *)&garbage);
+        sendCommand(ak2i_cmdLockFlash, 0, nullptr, 0);
+        sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr, 0);
+        sendCommand(ak2i_cmdActiveFatMap, 4, (uint8_t *)&garbage, 4);
     }
-    
+
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer)
     {
-        sendCommand(ak2i_cmdLockFlash, 0, nullptr);
+        sendCommand(ak2i_cmdLockFlash, 0, nullptr, 0);
 
-        if (m_ak2i_hwrevision == 0x81818181) sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr);
-        sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr);
-    
+        if (m_ak2i_hwrevision == 0x81818181) sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr, 20);
+        sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr, 0);
+
         for (uint32_t curpos=0; curpos < length; curpos+=0x200) {
             a2ki_read(buffer + curpos, address + curpos);
             showProgress(curpos,length, "Reading");
         }
-        
+
         return true;
     }
 
     bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
     {
-        sendCommand(ak2i_cmdUnlockFlash, 0, nullptr);
-        sendCommand(ak2i_cmdUnlockASIC, 0, nullptr);
-        
-        if (m_ak2i_hwrevision == 0x81818181) sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr);
-        sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr);
+        sendCommand(ak2i_cmdUnlockFlash, 0, nullptr, 0);
+        sendCommand(ak2i_cmdUnlockASIC, 0, nullptr, 0);
+
+        if (m_ak2i_hwrevision == 0x81818181) sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr, 20);
+        sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr, 0);
 
         for (uint32_t addr=0; addr < length; addr+=page_size)
         {
-            a2ki_erase(address + addr);  
+            a2ki_erase(address + addr);
 
             for (uint32_t i=0; i < page_size; i++) {
                 a2ki_writebyte(address + addr + i, buffer[addr + i]);
