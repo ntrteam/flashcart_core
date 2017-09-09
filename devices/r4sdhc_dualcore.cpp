@@ -1,4 +1,4 @@
-#include "device.h"
+#include "../device.h"
 
 class R4SDHC_DualCore : Flashcart {
 private:
@@ -23,6 +23,7 @@ private:
     }
 
     uint8_t encrypt(uint8_t dec) {
+        uint8_t enc = 0;
         if (enc & BIT(0)) dec |= BIT(5);
         if (enc & BIT(1)) dec |= BIT(4);
         if (enc & BIT(2)) dec |= BIT(1);
@@ -45,15 +46,21 @@ private:
         sendCommand(cmdbuf, 0, nullptr); // TODO: find IDB and get the latencies.
     }
 
-    void write_cmd(uint32_t address, uint8_t value) {
+    uint32_t rawErase(uint32_t address) {
+        return erase_wrapper<R4SDHC_DualCore, &R4SDHC_DualCore::erase_cmd, 0x10000>(address);
+    }
+
+    uint32_t rawWrite(uint32_t address, uint32_t length, const uint8_t *buffer) {
         uint8_t cmdbuf[8];
         memcpy(cmdbuf, cmdWriteByteFlash, 8);
         cmdbuf[1] = (address >> 16) & 0xFF;
         cmdbuf[2] = (address >>  8) & 0xFF;
         cmdbuf[3] = (address >>  0) & 0xFF;
-        cmdbuf[4] = value;
+        cmdbuf[4] = *buffer;
 
         sendCommand(cmdbuf, 0, nullptr);
+
+        return 1;
     }
 
 public:
@@ -72,17 +79,7 @@ public:
     void shutdown() { }
 
     // We don't have a read command...
-    bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) { return false; }
-
-    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {
-        for (uint32_t addr=0; addr < length; addr+=0x10000)
-            erase_cmd(address + addr);
-
-        for (uint32_t i=0; i < length; i++) {
-            write_cmd(address + i, buffer[i]);
-            showProgress(i,length, "Writing");
-        }
-    }
+    uint32_t readFlash(uint32_t address, uint32_t length, uint8_t *buffer) { return 0; }
 
     // Need to find offsets first.
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) { return false; }
