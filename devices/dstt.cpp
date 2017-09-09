@@ -22,13 +22,13 @@ Supported Chips using the same standard of command definitons (type A):
     0x80BF: http://www.metatech.com.hk/datasheet/sst/standard_mem_pdf/360-39LF-VFx00A-3-DS.pdf (29 blocks of 2048 bytes)
     0x9020: ST M28W160(B)T - http://pdf.datasheetcatalog.com/datasheet/stmicroelectronics/6680.pdf
     0x9120: ST M28W160(B)B - http://pdf.datasheetcatalog.com/datasheet/stmicroelectronics/6680.pdf
-    0x9B37: AMIC A29L800U 
+    0x9B37: AMIC A29L800U
     0xA01F: http://pdf1.alldatasheet.com/datasheet-pdf/view/56175/ATMEL/AT49BV8192.html (16K bytes boot block) (Two 16K bytes param blocks) (976K bytes main memory)
     0xA31F: http://pdf1.alldatasheet.com/datasheet-pdf/view/56175/ATMEL/AT49BV8192.html (same as above pretty much)
     0xA7C2: http://nice.kaze.com/MX29LV320.pdf (8x4K-Word blocks)
     0xA8C2: http://nice.kaze.com/MX29LV320.pdf (8x4K-Word blocks)
     0xB537: AMIC A29L400U
-    0xB91C: http://pdf1.alldatasheet.com/datasheet-pdf/view/113811/EON/EN29LV400AT-70BIP.html    
+    0xB91C: http://pdf1.alldatasheet.com/datasheet-pdf/view/113811/EON/EN29LV400AT-70BIP.html
     0xBA01: http://pdf1.alldatasheet.com/datasheet-pdf/view/524736/SPANSION/AM29LV400BB-90EC.html
     0xBA04: http://pdf1.alldatasheet.com/datasheet-pdf/view/186858/SPANSION/MBM29LV400BC-55PBT.html
     0xBA1C: http://pdf1.alldatasheet.com/datasheet-pdf/view/113812/EON/EN29LV400AB-70BIP.html
@@ -39,7 +39,7 @@ Supported Chips using the same standard of command definitons (type A):
     0xC31F: http://datasheetz.com/data/Integrated%20Circuits%20(ICs)/Memory/AT49BV802AT-70TI-datasheetz.html (8x4K-Word Blocks) (Writing slightly differs: see page 13 (uses AAA instead of 2AA?))
     0xC420: http://pdf.datasheetcatalog.com/datasheet/stmicroelectronics/6680.pdf
     0xC4C2: http://pdf1.alldatasheet.com/datasheet-pdf/view/113399/MCNIX/MX29LV160BT.html
-    0xEE20  http://pdf.datasheetcatalog.com/datasheet/SGSThomsonMicroelectronics/mXttvuu.pdf    
+    0xEE20  http://pdf.datasheetcatalog.com/datasheet/SGSThomsonMicroelectronics/mXttvuu.pdf
     0xEF20: http://pdf1.alldatasheet.com/datasheet-pdf/view/23064/STMICROELECTRONICS/M29W400.html (16k bytes boot block)
 
 Supported but untested, non standard flash commands:
@@ -145,13 +145,13 @@ private:
             case 0x9320:
             case 0x9389:
             case 0x9489:
-            case 0x9589:            
+            case 0x9589:
             case 0x9689:
             case 0x9789:
-                dstt_flash_command(0x87, 0, 0xFF);        
+                dstt_flash_command(0x87, 0, 0xFF);
                 break;
             default:
-                dstt_flash_command(0x87, 0, 0xF0);            
+                dstt_flash_command(0x87, 0, 0xF0);
                 break;
         }
     }
@@ -174,7 +174,7 @@ private:
             dstt_flash_command(0x87, 0x5555, 0x90);
             uint32_t device_id = dstt_flash_command(0, 0x100, 0);
             dstt_reset();
-         
+
             if ((uint16_t)device_id == 0xBA1C || (uint16_t)device_id == 0xB91C)
                 return device_id;
         }
@@ -187,7 +187,7 @@ private:
         for (int i = 0; i < sizeof(supported_flashchips) / 2; i++)
             if (supported_flashchips[i] == (uint16_t)flashchip)
                 return true;
-        
+
         return false;
     }
 
@@ -216,11 +216,11 @@ private:
         dstt_flash_command(0x87, offset, 0x50); // Clear Status Register
         dstt_flash_command(0x87, offset, 0x20); // Block Erase 1
         dstt_flash_command(0x87, offset, 0xD0); // Block Erase 2
-        
+
         while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
 
         dstt_flash_command(0x87, offset, 0x50); // Clear Status Register
-        dstt_flash_command(0x87, offset, 0xFF); // Reset        
+        dstt_flash_command(0x87, offset, 0xFF); // Reset
 
         uint32_t end_offset = offset + length;
         while (offset < end_offset)
@@ -230,29 +230,38 @@ private:
         }
     }
 
-    void Erase_Chip()
-    {
+    uint32_t Erase_Chip(uint32_t address) {
+
+        #define ERASE_RANGE(min, sz) \
+            if (address >= (min) && address < ((min)+(sz))) { erase_addr = (min); erase_sz = (sz); }
+
+        int erase_type = 0;
+        uint32_t erase_addr = 0, erase_sz = 0;
         switch(m_flashchip)
         {
             case 0x41F:
             case 0xA01F:
             case 0xA31F:
             case 0xB91C:
-                Erase_Block(0, 0x10000);
+                erase_type = 1;
+                erase_addr = 0;
+                erase_sz = 0x10000;
                 break;
 
             case 0x51F:
-                Erase_Block(0, 0x4000);
-                Erase_Block(0x4000, 0x2000);
-                Erase_Block(0x6000, 0x2000);
-                Erase_Block(0x8000, 0x8000);
+                erase_type = 1;
+                ERASE_RANGE(0, 0x4000)
+                else ERASE_RANGE(0x4000, 0x2000)
+                else ERASE_RANGE(0x6000, 0x2000)
+                else ERASE_RANGE(0x8000, 0x8000)
                 break;
 
             case 0x80BF:
             case 0xC11F:
             case 0xC31F:
-                for (int i = 0; i < 29; i++)
-                    Erase_Block(i*0x800, 0x800);
+                erase_type = 1;
+                erase_addr = PAGE_ROUND_DOWN(address, 0x800);
+                erase_sz = 0x800;
                 break;
 
             case 0x1A37:
@@ -261,10 +270,11 @@ private:
             case 0xC298:
             case 0xC420:
             case 0xC4C2:
-                Erase_Block(0, 0x8000);
-                Erase_Block(0x8000, 0x2000);
-                Erase_Block(0xA000, 0x2000);
-                Erase_Block(0xC000, 0x4000);
+                erase_type = 1;
+                ERASE_RANGE(0, 0x8000)
+                else ERASE_RANGE(0x8000, 0x2000)
+                else ERASE_RANGE(0xA000, 0x2000)
+                else ERASE_RANGE(0xC000, 0x4000)
                 break;
 
             case 0x49B0:
@@ -275,30 +285,32 @@ private:
             case 0x9389:
             case 0x9589:
             case 0x9789:
-                Erase_Block_Type2(0, 0x1000);
-                Erase_Block_Type2(0x1000, 0x1000);
-                Erase_Block_Type2(0x2000, 0x1000);
-                Erase_Block_Type2(0x3000, 0x1000);
-                Erase_Block_Type2(0x4000, 0x1000);
-                Erase_Block_Type2(0x5000, 0x1000);
-                Erase_Block_Type2(0x6000, 0x1000);
-                Erase_Block_Type2(0x7000, 0x1000);
-                Erase_Block_Type2(0x8000, 0x8000);
+                erase_type = 2;
+                ERASE_RANGE(0, 0x1000)
+                else ERASE_RANGE(0x1000, 0x1000)
+                else ERASE_RANGE(0x2000, 0x1000)
+                else ERASE_RANGE(0x3000, 0x1000)
+                else ERASE_RANGE(0x4000, 0x1000)
+                else ERASE_RANGE(0x5000, 0x1000)
+                else ERASE_RANGE(0x6000, 0x1000)
+                else ERASE_RANGE(0x7000, 0x1000)
+                else ERASE_RANGE(0x8000, 0x8000)
                 break;
 
-            case 0x9089: 
+            case 0x9089:
             case 0x9289:
             case 0x9489:
             case 0x9689:
-                Erase_Block_Type2(0, 0x8000);
-                Erase_Block_Type2(0x8000, 0x1000);
-                Erase_Block_Type2(0x9000, 0x1000);
-                Erase_Block_Type2(0xA000, 0x1000);
-                Erase_Block_Type2(0xB000, 0x1000);
-                Erase_Block_Type2(0xC000, 0x1000);
-                Erase_Block_Type2(0xD000, 0x1000);
-                Erase_Block_Type2(0xE000, 0x1000);
-                Erase_Block_Type2(0xF000, 0x1000);
+                erase_type = 2;
+                ERASE_RANGE(0, 0x8000)
+                else ERASE_RANGE(0x8000, 0x1000)
+                else ERASE_RANGE(0x9000, 0x1000)
+                else ERASE_RANGE(0xA000, 0x1000)
+                else ERASE_RANGE(0xB000, 0x1000)
+                else ERASE_RANGE(0xC000, 0x1000)
+                else ERASE_RANGE(0xD000, 0x1000)
+                else ERASE_RANGE(0xE000, 0x1000)
+                else ERASE_RANGE(0xF000, 0x1000)
                 break;
 
             case 0x49C2:
@@ -308,21 +320,46 @@ private:
             case 0x9B37: // no datasheet
             case 0xA8C2:
             case 0xB537: // no datasheet
-            case 0xBA01:            
+            case 0xBA01:
             case 0xBA04:
             case 0xBA1C:
-            case 0xBA4A:            
+            case 0xBA4A:
             case 0xBAC2:
             case 0xEE20:
             case 0xEF20:
             default:
-                Erase_Block(0x0000, 0x2000);
-                Erase_Block(0x2000, 0x1000);
-                Erase_Block(0x3000, 0x1000);
-                Erase_Block(0x4000, 0x4000);
-                Erase_Block(0x8000, 0x8000);
+                erase_type = 1;
+                ERASE_RANGE(0x0000, 0x2000)
+                else ERASE_RANGE(0x2000, 0x1000)
+                else ERASE_RANGE(0x3000, 0x1000)
+                else ERASE_RANGE(0x4000, 0x4000)
+                else ERASE_RANGE(0x8000, 0x8000)
                 break;
         }
+
+        #undef ERASE_RANGE
+
+        uint32_t offset = address - erase_addr;
+        uint8_t *extra = nullptr;
+        if (offset) {
+            extra = (uint8_t*)malloc(offset);
+            readFlash(erase_addr, offset, extra);
+        }
+
+        switch (erase_type) {
+            case 1:
+                Erase_Block(erase_addr, erase_sz);
+                break;
+            case 2:
+                Erase_Block_Type2(erase_addr, erase_sz);
+        }
+
+        if (extra != nullptr) {
+            writeFlash(erase_addr, offset, extra);
+            free(extra);
+        }
+
+        return erase_addr - offset;
     }
 
     // pretty messy function, but gets the job done
@@ -345,20 +382,20 @@ private:
                 dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
                 dstt_flash_command(0x87, offset, 0x40); // Word Write
                 dstt_flash_command(0x87, offset, data);
-        
+
                 while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
-        
+
                 dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
                 dstt_flash_command(0x87, offset, 0xFF); // Reset (offset not required)
                 break;
             default:
-                dstt_flash_command(0x87, 0x5555, 0xAA); 
+                dstt_flash_command(0x87, 0x5555, 0xAA);
                 dstt_flash_command(0x87, 0x2AAA, 0x55);
-                dstt_flash_command(0x87, 0x5555, 0xA0);        
+                dstt_flash_command(0x87, 0x5555, 0xA0);
                 dstt_flash_command(0x87, offset, data);
-        
+
                 while ((uint8_t)dstt_flash_command(0, offset, 0) != data);
-        
+
                 dstt_reset();
                 break;
         }
@@ -384,7 +421,7 @@ public:
     void shutdown() {
         dstt_flash_command(0x88, 0, 0);
     }
-    
+
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
         dstt_reset();
 
@@ -395,7 +432,7 @@ public:
         {
             uint32_t data = dstt_flash_command(0, address, 0);
             showProgress(address, end_address, "Reading");
-            
+
             buffer[i++] = (uint8_t)((data >> 0) & 0xFF);
             buffer[i++] = (uint8_t)((data >> 8) & 0xFF);
             buffer[i++] = (uint8_t)((data >> 16) & 0xFF);
@@ -408,16 +445,16 @@ public:
     }
 
     // todo: we're just assuming this is block (0x2000) aligned
-    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
-    {    
-        // really fucking temporary, writeFlash can only do full length writes
-        // todo: read and erase properly
-        Erase_Chip();
+    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {
+        uint32_t curpos;
+        for (curpos = 0; address < length;) {
+            uint32_t erase_sz = Erase_Chip(address + curpos);
+            if (!erase_sz) break;
 
-        for(int i = 0; i < length; i++)
-        {
-            Program_Byte(address++, buffer[i]);
-            showProgress(i, length, "Writing");
+            for (uint32_t end = curpos + erase_sz; curpos < end; ++curpos) {
+                Program_Byte(address + curpos, buffer[curpos]);
+                showProgress(curpos, length, "Writing");
+            }
         }
 
         return true;
@@ -437,7 +474,7 @@ public:
         memcpy(buffer + 0x1000, blowfish_key, 0x48);
         memcpy(buffer + 0x2000, blowfish_key + 0x48, 0x1000);
         memcpy(buffer + 0x7E00, firm, firm_size);
-        
+
         writeFlash(0, m_max_length, buffer);
 
         return true;
