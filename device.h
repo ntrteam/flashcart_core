@@ -10,6 +10,9 @@ using std::uint32_t;
 
 // Utility -- s must be a power of two and have no side effects.
 #define PAGE_ROUND_UP(x, s) ( ((x) + (s)-1)  & (~((s)-1)) )
+#define PAGE_ROUND_DOWN(x, s) ( (x) & (~((s)-1)) )
+
+#define BIT(n) (1 << (n))
 
 class Flashcart {
 public:

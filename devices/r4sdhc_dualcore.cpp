@@ -1,5 +1,7 @@
 #include "device.h"
 
+#include <cstring>
+
 class R4SDHC_DualCore : Flashcart {
 private:
     static const uint8_t cmdEraseFlash[8];
@@ -23,6 +25,7 @@ private:
     }
 
     uint8_t encrypt(uint8_t dec) {
+        uint8_t enc = 0;
         if (enc & BIT(0)) dec |= BIT(5);
         if (enc & BIT(1)) dec |= BIT(4);
         if (enc & BIT(2)) dec |= BIT(1);
@@ -67,7 +70,7 @@ public:
         sendCommand(cmdUnkD0AA, 4, dummy);
         sendCommand(cmdUnkD0AA, 4, dummy);
 
-        return true; // We have no way of checking...
+        return true; // We have no way of checking yet.
     }
     void shutdown() { }
 
@@ -82,6 +85,8 @@ public:
             write_cmd(address + i, buffer[i]);
             showProgress(i,length, "Writing");
         }
+
+        return true;
     }
 
     // Need to find offsets first.
