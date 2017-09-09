@@ -92,7 +92,7 @@ Known flashchips that are "unsupported":
     0xDAC2 "MACRONIX MX29LV800T"
 */
 
-#include "device.h"
+#include "../device.h"
 
 #include <stdlib.h>
 #include <cstring>
@@ -230,7 +230,20 @@ private:
         }
     }
 
-    uint32_t Erase_Chip(uint32_t address) {
+    void readWord(uint32_t address, uint8_t *buffer) {
+        uint32_t data = dstt_flash_command(0, address, 0);
+
+        *buffer++ = (uint8_t)((data >> 0) & 0xFF);
+        *buffer++ = (uint8_t)((data >> 8) & 0xFF);
+        *buffer++ = (uint8_t)((data >> 16) & 0xFF);
+        *buffer++ = (uint8_t)((data >> 24) & 0xFF);
+    }
+
+    uint32_t rawRead(uint32_t address, uint32_t length, uint8_t *buffer) {
+        return read_wrapper<DSTT, &DSTT::readWord, 4>(address, length, buffer);
+    }
+
+    uint32_t rawErase(uint32_t address) {
 
         #define ERASE_RANGE(min, sz) \
             if (address >= (min) && address < ((min)+(sz))) { erase_addr = (min); erase_sz = (sz); }
@@ -363,7 +376,7 @@ private:
     }
 
     // pretty messy function, but gets the job done
-    void Program_Byte(uint32_t offset, uint8_t data)
+    uint32_t rawWrite(uint32_t offset, uint32_t length, const uint8_t *buffer)
     {
         switch(m_flashchip)
         {
@@ -381,7 +394,7 @@ private:
             case 0x9789:
                 dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
                 dstt_flash_command(0x87, offset, 0x40); // Word Write
-                dstt_flash_command(0x87, offset, data);
+                dstt_flash_command(0x87, offset, *buffer);
 
                 while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
 
@@ -392,13 +405,15 @@ private:
                 dstt_flash_command(0x87, 0x5555, 0xAA);
                 dstt_flash_command(0x87, 0x2AAA, 0x55);
                 dstt_flash_command(0x87, 0x5555, 0xA0);
-                dstt_flash_command(0x87, offset, data);
+                dstt_flash_command(0x87, offset, *buffer);
 
-                while ((uint8_t)dstt_flash_command(0, offset, 0) != data);
+                while ((uint8_t)dstt_flash_command(0, offset, 0) != *buffer);
 
                 dstt_reset();
                 break;
         }
+
+        return 1;
     }
 
 public:
@@ -422,47 +437,10 @@ public:
         dstt_flash_command(0x88, 0, 0);
     }
 
-    bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
-        dstt_reset();
-
-        uint32_t i = 0;
-        uint32_t end_address = address + length;
-
-        while (address < end_address)
-        {
-            uint32_t data = dstt_flash_command(0, address, 0);
-            showProgress(address, end_address, "Reading");
-
-            buffer[i++] = (uint8_t)((data >> 0) & 0xFF);
-            buffer[i++] = (uint8_t)((data >> 8) & 0xFF);
-            buffer[i++] = (uint8_t)((data >> 16) & 0xFF);
-            buffer[i++] = (uint8_t)((data >> 24) & 0xFF);
-
-            address += 4;
-        }
-
-        return true;
-    }
-
-    // todo: we're just assuming this is block (0x2000) aligned
-    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {
-        uint32_t curpos;
-        for (curpos = 0; address < length;) {
-            uint32_t erase_sz = Erase_Chip(address + curpos);
-            if (!erase_sz) break;
-
-            for (uint32_t end = curpos + erase_sz; curpos < end; ++curpos) {
-                Program_Byte(address + curpos, buffer[curpos]);
-                showProgress(curpos, length, "Writing");
-            }
-        }
-
-        return true;
-    }
-
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) {
         // todo: we just read and write the entire flash chip because we don't align blocks
         // properly, when writeFlash works, don't use memcpy
+        // TODO: We can probably rewrite this now.
 
         // don't bother installing if we can't fit
         if (firm_size > m_max_length - 0x7E00)

@@ -1,5 +1,5 @@
-#include "device.h"
-#include "delay.h"
+#include "../device.h"
+// #include "delay.h"
 
 #include <cstring>
 #include <algorithm>
@@ -42,18 +42,30 @@ private:
             dst[i] = encrypt(src[i]);
     }
 
-    void r4i_read(uint8_t *outbuf, uint32_t address) {
+    void r4i_wait_flash_busy() {
+        uint32_t state;
+        do {
+            // ioDelay( 16 * 10 );
+            sendCommand(cmdWaitFlashBusy, 4, (uint8_t *)&state, 32);
+        } while ((state & 1) != 0);
+    }
+
+    void r4i_read(uint32_t address, uint8_t *buffer) {
         uint8_t cmdbuf[8];
         memcpy(cmdbuf, cmdReadFlash, 8);
         cmdbuf[1] = (address >> 16) & 0xFF;
         cmdbuf[2] = (address >>  8) & 0xFF;
         cmdbuf[3] = (address >>  0) & 0xFF;
 
-        sendCommand(cmdbuf, 0x200, outbuf, 32);
+        sendCommand(cmdbuf, 0x200, buffer, 32);
         r4i_wait_flash_busy();
     }
 
-    uint32_t r4i_erase(uint32_t address)
+    uint32_t rawRead(uint32_t address, uint32_t length, uint8_t *buffer) {
+        return read_wrapper<R4i_Gold_3DS, &R4i_Gold_3DS::r4i_read, 0x200>(address, length, buffer);
+    }
+
+    void r4i_erase(uint32_t address)
     {
         uint32_t status;
         uint8_t cmdbuf[8];
@@ -66,7 +78,11 @@ private:
         r4i_wait_flash_busy();
     }
 
-    void r4i_writebyte(uint32_t address, uint8_t value)
+    uint32_t rawErase(uint32_t address) {
+        return erase_wrapper<R4i_Gold_3DS, &R4i_Gold_3DS::r4i_erase, 0x10000>(address);
+    }
+
+    uint32_t rawWrite(uint32_t address, uint32_t length, const uint8_t *buffer)
     {
         uint32_t status;
         uint8_t cmdbuf[8];
@@ -74,18 +90,12 @@ private:
         cmdbuf[1] = (address >> 16) & 0xFF;
         cmdbuf[2] = (address >>  8) & 0xFF;
         cmdbuf[3] = (address >>  0) & 0xFF;
-        cmdbuf[4] = value;
+        cmdbuf[4] = *buffer;
 
         sendCommand(cmdbuf, 4, (uint8_t*)&status, 32);
         r4i_wait_flash_busy();
-    }
 
-    void r4i_wait_flash_busy() {
-        uint32_t state;
-        do {
-            ioDelay( 16 * 10 );
-            sendCommand(cmdWaitFlashBusy, 4, (uint8_t *)&state, 32);
-        } while ((state & 1) != 0);
+        return 1;
     }
 
 protected:
@@ -111,29 +121,6 @@ public:
     }
 
     void shutdown() { }
-
-    bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer)
-    {
-        for (uint32_t curpos=0; curpos < length; curpos+=0x200) {
-            r4i_read(buffer + curpos, address + curpos);
-            showProgress(curpos,length, "Reading");
-        }
-
-        return true;
-    }
-
-    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
-    {
-        for (uint32_t addr=0; addr < length; addr+=0x10000)
-            r4i_erase(address + addr);
-
-        for (uint32_t i=0; i < length; i++) {
-            r4i_writebyte(address + i, buffer[i]);
-            showProgress(i,length, "Writing");
-        }
-
-        return true;
-    }
 
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size)
     {

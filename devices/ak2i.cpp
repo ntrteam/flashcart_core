@@ -1,5 +1,5 @@
-#include "device.h"
-#include "delay.h"
+#include "../device.h"
+//#include "delay.h"
 
 #include <stdlib.h>
 #include <cstring>
@@ -28,12 +28,12 @@ protected:
     void a2ki_wait_flash_busy() {
         uint32_t state;
         do {
-            ioDelay( 16 * 10 ); // TODO: Figure out what's really going on and remove the delay.
+            //ioDelay( 16 * 10 ); // TODO: Figure out what's really going on and remove the delay.
             sendCommand(ak2i_cmdWaitFlashBusy, 4, (uint8_t *)&state, 4);
         } while ((state & 1) != 0);
     }
 
-    void a2ki_read(uint8_t *outbuf, uint32_t address) {
+    void ak2i_read(uint32_t address, uint8_t *buffer) {
         uint8_t cmdbuf[8];
         memcpy(cmdbuf, ak2i_cmdReadFlash, 8);
         cmdbuf[1] = (address >> 24) & 0xFF;
@@ -41,11 +41,16 @@ protected:
         cmdbuf[3] = (address >>  8) & 0xFF;
         cmdbuf[4] = (address >>  0) & 0xFF;
 
-        sendCommand(cmdbuf, 0x200, outbuf, 2);
+        sendCommand(cmdbuf, 0x200, buffer, 2);
         a2ki_wait_flash_busy();
     }
 
-    void a2ki_erase(uint32_t address) {
+    uint32_t rawRead(uint32_t address, uint32_t length, uint8_t *buffer) {
+        return read_wrapper<AK2i, &AK2i::ak2i_read, 0x200>(address, length, buffer);
+    }
+
+    void ak2i_erase(uint32_t address) {
+        // TODO: What if address isn't aligned?
         uint8_t cmdbuf[8];
 
         if (m_ak2i_hwrevision == 0x44)
@@ -66,8 +71,13 @@ protected:
         a2ki_wait_flash_busy();
     }
 
-    void a2ki_writebyte(uint32_t address, uint8_t value) {
+    uint32_t rawErase(uint32_t address) {
+        return erase_wrapper<AK2i, &AK2i::ak2i_erase, page_size>(address);
+    }
+
+    uint32_t rawWrite(uint32_t address, uint32_t length, const uint8_t *buffer) {
         uint8_t cmdbuf[8];
+        (void)length; // Unused, since we only write one byte at a time.
 
         if (m_ak2i_hwrevision == 0x44)
         {
@@ -82,13 +92,15 @@ protected:
 
         cmdbuf[2] = (address >>  8) & 0xFF;
         cmdbuf[3] = (address >>  0) & 0xFF;
-        cmdbuf[4] = value;
+        cmdbuf[4] = *buffer;
 
         sendCommand(cmdbuf, 0, nullptr, 20);
         a2ki_wait_flash_busy();
+
+        return 1;
     }
 
-    void ak2i_writestate(bool status) {
+    void setWriteState(bool status) {
         if (status == write_status) return;
 
         if (status) {
@@ -119,6 +131,7 @@ public:
     bool initialize()
     {
         uint8_t hwrev[4];
+        uint8_t garbage[4];
         sendCommand(ak2i_cmdGetHWRevision, 4, hwrev, 0);
         m_ak2i_hwrevision = hwrev[0];
 
@@ -127,7 +140,8 @@ public:
         sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr, 0);
         if (m_ak2i_hwrevision == 0x81)
             sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr, 20);
-        sendCommand(ak2i_cmdActiveFatMap, 4, (uint8_t*)&garbage, 0);
+        sendCommand(ak2i_cmdActiveFatMap, 4, garbage, 0);
+        sendCommand(ak2i_cmdUnlockASIC, 0, nullptr, 0);
 
         write_status = false;
         return true;
@@ -136,37 +150,8 @@ public:
     void shutdown()
     {
         uint32_t garbage;
-        ak2i_writestate(false);
+        setWriteState(false);
         sendCommand(ak2i_cmdActiveFatMap, 4, (uint8_t *)&garbage, 4);
-    }
-
-    bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer)
-    {
-        ak2i_writestate(false);
-
-        for (uint32_t curpos=0; curpos < length; curpos+=0x200) {
-            a2ki_read(buffer + curpos, address + curpos);
-            showProgress(curpos,length, "Reading");
-        }
-
-        return true;
-    }
-
-    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
-    {
-        ak2i_writestate(true);
-
-        for (uint32_t addr=0; addr < length; addr+=page_size)
-        {
-            a2ki_erase(address + addr);
-
-            for (uint32_t i=0; i < page_size; i++) {
-                a2ki_writebyte(address + addr + i, buffer[addr + i]);
-                showProgress(addr+i,length, "Writing");
-            }
-        }
-
-        return true;
     }
 
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size)
@@ -193,6 +178,8 @@ public:
         writeFlash(blowfish_adr, buf_size, buf);
 
         free(buf);
+
+        return true;
     }
 };
 
