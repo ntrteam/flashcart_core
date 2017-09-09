@@ -113,6 +113,7 @@ const uint16_t supported_flashchips[] = {
 class DSTT : Flashcart {
 private:
     uint32_t m_flashchip;
+    int m_cmd_type;
 
     uint32_t dstt_flash_command(uint8_t data0, uint32_t data1, uint16_t data2)
     {
@@ -134,25 +135,10 @@ private:
 
     void dstt_reset()
     {
-        switch(m_flashchip)
-        {
-            case 0x49B0:
-            case 0x9089:
-            case 0x912C:
-            case 0x9189:
-            case 0x922C:
-            case 0x9289:
-            case 0x9320:
-            case 0x9389:
-            case 0x9489:
-            case 0x9589:
-            case 0x9689:
-            case 0x9789:
-                dstt_flash_command(0x87, 0, 0xFF);
-                break;
-            default:
-                dstt_flash_command(0x87, 0, 0xF0);
-                break;
+        if (m_cmd_type == 2) {
+            dstt_flash_command(0x87, 0, 0xFF);
+        } else if (m_cmd_type == 1) {
+            dstt_flash_command(0x87, 0, 0xF0);
         }
     }
 
@@ -193,41 +179,34 @@ private:
 
     void Erase_Block(uint32_t offset, uint32_t length)
     {
-        dstt_flash_command(0x87, 0x5555, 0xAA);
-        dstt_flash_command(0x87, 0x2AAA, 0x55);
-        dstt_flash_command(0x87, 0x5555, 0x80);
-        dstt_flash_command(0x87, 0x5555, 0xAA);
-        dstt_flash_command(0x87, 0x2AAA, 0x55);
+        if (m_cmd_type == 1) {
+            dstt_flash_command(0x87, 0x5555, 0xAA);
+            dstt_flash_command(0x87, 0x2AAA, 0x55);
+            dstt_flash_command(0x87, 0x5555, 0x80);
+            dstt_flash_command(0x87, 0x5555, 0xAA);
+            dstt_flash_command(0x87, 0x2AAA, 0x55);
 
-        dstt_flash_command(0x87, offset, 0x30);
+            dstt_flash_command(0x87, offset, 0x30);
+        } else if (m_cmd_type == 2) {
+            dstt_flash_command(0x87, offset, 0x50); // Clear Status Register
+            dstt_flash_command(0x87, offset, 0x20); // Erase Setup
+            dstt_flash_command(0x87, offset, 0xD0); // Erase Confirm
+
+            // TODO: Timeout if something goes wrong.
+            while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
+
+            dstt_flash_command(0x87, offset, 0x50); // Clear Status Register
+            // dstt_flash_command(0x87, offset, 0xFF); // Reset
+        }
 
         uint32_t end_offset = offset + length;
-        while (offset < end_offset)
+        for (; offset < end_offset; offset += 4)
         {
+            // TODO: Timeout if something goes wrong.
             while (dstt_flash_command(0, offset, 0) != 0xFFFFFFFF);
-            offset += 4;
         }
 
         dstt_reset();
-    }
-
-    void Erase_Block_Type2(uint32_t offset, uint32_t length)
-    {
-        dstt_flash_command(0x87, offset, 0x50); // Clear Status Register
-        dstt_flash_command(0x87, offset, 0x20); // Block Erase 1
-        dstt_flash_command(0x87, offset, 0xD0); // Block Erase 2
-
-        while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
-
-        dstt_flash_command(0x87, offset, 0x50); // Clear Status Register
-        dstt_flash_command(0x87, offset, 0xFF); // Reset
-
-        uint32_t end_offset = offset + length;
-        while (offset < end_offset)
-        {
-            while (dstt_flash_command(0, offset, 0) != 0xFFFFFFFF);
-            offset += 4;
-        }
     }
 
     void readWord(uint32_t address, uint8_t *buffer) {
@@ -248,7 +227,6 @@ private:
         #define ERASE_RANGE(min, sz) \
             if (address >= (min) && address < ((min)+(sz))) { erase_addr = (min); erase_sz = (sz); }
 
-        int erase_type = 0;
         uint32_t erase_addr = 0, erase_sz = 0;
         switch(m_flashchip)
         {
@@ -256,13 +234,11 @@ private:
             case 0xA01F:
             case 0xA31F:
             case 0xB91C:
-                erase_type = 1;
                 erase_addr = 0;
                 erase_sz = 0x10000;
                 break;
 
             case 0x51F:
-                erase_type = 1;
                 ERASE_RANGE(0, 0x4000)
                 else ERASE_RANGE(0x4000, 0x2000)
                 else ERASE_RANGE(0x6000, 0x2000)
@@ -272,7 +248,6 @@ private:
             case 0x80BF:
             case 0xC11F:
             case 0xC31F:
-                erase_type = 1;
                 erase_addr = PAGE_ROUND_DOWN(address, 0x800);
                 erase_sz = 0x800;
                 break;
@@ -283,7 +258,6 @@ private:
             case 0xC298:
             case 0xC420:
             case 0xC4C2:
-                erase_type = 1;
                 ERASE_RANGE(0, 0x8000)
                 else ERASE_RANGE(0x8000, 0x2000)
                 else ERASE_RANGE(0xA000, 0x2000)
@@ -298,7 +272,6 @@ private:
             case 0x9389:
             case 0x9589:
             case 0x9789:
-                erase_type = 2;
                 ERASE_RANGE(0, 0x1000)
                 else ERASE_RANGE(0x1000, 0x1000)
                 else ERASE_RANGE(0x2000, 0x1000)
@@ -314,7 +287,6 @@ private:
             case 0x9289:
             case 0x9489:
             case 0x9689:
-                erase_type = 2;
                 ERASE_RANGE(0, 0x8000)
                 else ERASE_RANGE(0x8000, 0x1000)
                 else ERASE_RANGE(0x9000, 0x1000)
@@ -341,7 +313,6 @@ private:
             case 0xEE20:
             case 0xEF20:
             default:
-                erase_type = 1;
                 ERASE_RANGE(0x0000, 0x2000)
                 else ERASE_RANGE(0x2000, 0x1000)
                 else ERASE_RANGE(0x3000, 0x1000)
@@ -359,13 +330,7 @@ private:
             readFlash(erase_addr, offset, extra);
         }
 
-        switch (erase_type) {
-            case 1:
-                Erase_Block(erase_addr, erase_sz);
-                break;
-            case 2:
-                Erase_Block_Type2(erase_addr, erase_sz);
-        }
+        Erase_Block(erase_addr, erase_sz);
 
         if (extra != nullptr) {
             writeFlash(erase_addr, offset, extra);
@@ -378,41 +343,27 @@ private:
     // pretty messy function, but gets the job done
     uint32_t rawWrite(uint32_t offset, uint32_t length, const uint8_t *buffer)
     {
-        switch(m_flashchip)
-        {
-            case 0x49B0:
-            case 0x9089:
-            case 0x912C:
-            case 0x9189:
-            case 0x922C:
-            case 0x9289:
-            case 0x9320:
-            case 0x9389:
-            case 0x9489:
-            case 0x9689:
-            case 0x9589:
-            case 0x9789:
-                dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
-                dstt_flash_command(0x87, offset, 0x40); // Word Write
-                dstt_flash_command(0x87, offset, *buffer);
+        if (m_cmd_type == 2) {
+            dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
+            dstt_flash_command(0x87, offset, 0x40); // Word Write
+            dstt_flash_command(0x87, offset, *buffer);
 
-                while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
+            // TODO: Timeout if something goes wrong.
+            while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
 
-                dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
-                dstt_flash_command(0x87, offset, 0xFF); // Reset (offset not required)
-                break;
-            default:
-                dstt_flash_command(0x87, 0x5555, 0xAA);
-                dstt_flash_command(0x87, 0x2AAA, 0x55);
-                dstt_flash_command(0x87, 0x5555, 0xA0);
-                dstt_flash_command(0x87, offset, *buffer);
+            dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
+            //dstt_flash_command(0x87, offset, 0xFF); // Reset (offset not required)
+        } else if (m_cmd_type == 1) {
+            dstt_flash_command(0x87, 0x5555, 0xAA);
+            dstt_flash_command(0x87, 0x2AAA, 0x55);
+            dstt_flash_command(0x87, 0x5555, 0xA0);
+            dstt_flash_command(0x87, offset, *buffer);
 
-                while ((uint8_t)dstt_flash_command(0, offset, 0) != *buffer);
-
-                dstt_reset();
-                break;
+            // TODO: Timeout if something goes wrong.
+            while ((uint8_t)dstt_flash_command(0, offset, 0) != *buffer);
         }
 
+        dstt_reset();
         return 1;
     }
 
@@ -429,6 +380,26 @@ public:
         m_flashchip = get_flashchip_id();
         if (!flashchip_supported(m_flashchip))
             return false;
+
+        switch(m_flashchip) {
+            case 0x49B0:
+            case 0x9089:
+            case 0x912C:
+            case 0x9189:
+            case 0x922C:
+            case 0x9289:
+            case 0x9320:
+            case 0x9389:
+            case 0x9489:
+            case 0x9589:
+            case 0x9689:
+            case 0x9789:
+                m_cmd_type = 2;
+                break;
+            default:
+                m_cmd_type = 1;
+                break;
+        }
 
         return true;
     }
