@@ -141,7 +141,7 @@ public:
 
         for (uint32_t curpos=0; curpos < length; curpos+=0x200) {
             a2ki_read(buffer + curpos, address + curpos);
-            showProgress(curpos,length, "Reading");
+            showProgress(curpos+1,length, "Reading");
         }
 
         return true;
@@ -161,7 +161,7 @@ public:
 
             for (uint32_t i=0; i < page_size; i++) {
                 a2ki_writebyte(address + addr + i, buffer[addr + i]);
-                showProgress(addr+i,length, "Writing");
+                showProgress(addr+i+1,length, "Writing");
             }
         }
 

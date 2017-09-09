@@ -397,8 +397,8 @@ public:
         while (address < end_address)
         {
             uint32_t data = dstt_flash_command(0, address, 0);
-            showProgress(address, end_address, "Reading");
-
+            showProgress(address+1, end_address, "Reading");
+            
             buffer[i++] = (uint8_t)((data >> 0) & 0xFF);
             buffer[i++] = (uint8_t)((data >> 8) & 0xFF);
             buffer[i++] = (uint8_t)((data >> 16) & 0xFF);
@@ -420,7 +420,7 @@ public:
         for(int i = 0; i < length; i++)
         {
             Program_Byte(address++, buffer[i]);
-            showProgress(i, length, "Writing");
+            showProgress(i+1, length, "Writing");
         }
 
         return true;

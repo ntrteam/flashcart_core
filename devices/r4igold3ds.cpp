@@ -116,7 +116,7 @@ public:
     {
         for (uint32_t curpos=0; curpos < length; curpos+=0x200) {
             r4i_read(buffer + curpos, address + curpos);
-            showProgress(curpos,length, "Reading");
+            showProgress(curpos+1,length, "Reading");
         }
 
         return true;
@@ -129,7 +129,7 @@ public:
 
         for (uint32_t i=0; i < length; i++) {
             r4i_writebyte(address + i, buffer[i]);
-            showProgress(i,length, "Writing");
+            showProgress(i+1,length, "Writing");
         }
 
         return true;
