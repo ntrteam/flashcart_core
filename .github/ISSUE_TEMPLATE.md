@@ -12,7 +12,9 @@ HW Revision:
 
 
 <details><summary>Images <em>(Click to Expand)</em></summary><p> <!-- Please do not modify this line. -->
-<!-- Insert images here. We'd like to see front of cart, and both sides of the PCB. -->
+
+<!-- Insert images after these comments. We'd like to see front of cart, -->
+<!-- and both sides of the PCB. -->
 <!-- We prefer direct image embeds over links to imgur albums. -->
 
 
@@ -21,6 +23,7 @@ HW Revision:
 
 <!-- Do not insert any images after this line. -->
 </p></details> <!-- Please do not modify this line. -->
+
 <!-- Link a dump of the cart taken using GM9 here. Not trimmed, please. -->
 
 GM9 Untrimmed Dump: 
