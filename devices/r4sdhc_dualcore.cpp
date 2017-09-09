@@ -1,6 +1,9 @@
 #include "device.h"
 
 #include <cstring>
+#include <algorithm>
+
+#define BIT(n) (1 << (n))
 
 class R4SDHC_DualCore : Flashcart {
 private:
@@ -25,15 +28,14 @@ private:
     }
 
     uint8_t encrypt(uint8_t dec) {
-        uint8_t enc = 0;
-        if (enc & BIT(0)) dec |= BIT(5);
-        if (enc & BIT(1)) dec |= BIT(4);
-        if (enc & BIT(2)) dec |= BIT(1);
-        if (enc & BIT(3)) dec |= BIT(3);
-        if (enc & BIT(4)) dec |= BIT(6);
-        if (enc & BIT(5)) dec |= BIT(7);
-        if (enc & BIT(6)) dec |= BIT(0);
-        if (enc & BIT(7)) dec |= BIT(2);
+        if (dec & BIT(0)) dec |= BIT(5);
+        if (dec & BIT(1)) dec |= BIT(4);
+        if (dec & BIT(2)) dec |= BIT(1);
+        if (dec & BIT(3)) dec |= BIT(3);
+        if (dec & BIT(4)) dec |= BIT(6);
+        if (dec & BIT(5)) dec |= BIT(7);
+        if (dec & BIT(6)) dec |= BIT(0);
+        if (dec & BIT(7)) dec |= BIT(2);
         dec ^= 0x98;
         return dec;
     }
