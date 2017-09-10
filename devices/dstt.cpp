@@ -174,7 +174,7 @@ private:
 
     bool flashchip_supported(uint32_t flashchip)
     {
-        for (int i = 0; i < sizeof(supported_flashchips) / 2; i++)
+        for (unsigned int i = 0; i < sizeof(supported_flashchips) / 2; ++i)
             if (supported_flashchips[i] == (uint16_t)flashchip)
                 return true;
 
@@ -227,35 +227,25 @@ private:
     }
 
     uint32_t rawErase(uint32_t address) {
+        std::vector<uint32_t> erase_blocks;
 
-        #define ERASE_RANGE(min, sz) \
-            if (address >= (min) && address < ((min)+(sz))) { \
-                erase_addr = (min); erase_sz = (sz); \
-            }
-
-        uint32_t erase_addr = 0, erase_sz = 0;
         switch(m_flashchip)
         {
             case 0x41F:
             case 0xA01F:
             case 0xA31F:
             case 0xB91C:
-                erase_addr = 0;
-                erase_sz = 0x10000;
+                erase_blocks = {0x10000};
                 break;
 
             case 0x51F:
-                ERASE_RANGE(0, 0x4000)
-                else ERASE_RANGE(0x4000, 0x2000)
-                else ERASE_RANGE(0x6000, 0x2000)
-                else ERASE_RANGE(0x8000, 0x8000)
+                erase_blocks = {0x4000, 0x2000, 0x2000, 0x8000};
                 break;
 
             case 0x80BF:
             case 0xC11F:
             case 0xC31F:
-                erase_addr = PAGE_ROUND_DOWN(address, 0x800);
-                erase_sz = 0x800;
+                erase_blocks = std::vector<uint32_t>(0x20, 0x800);
                 break;
 
             case 0x1A37:
@@ -264,10 +254,7 @@ private:
             case 0xC298:
             case 0xC420:
             case 0xC4C2:
-                ERASE_RANGE(0, 0x8000)
-                else ERASE_RANGE(0x8000, 0x2000)
-                else ERASE_RANGE(0xA000, 0x2000)
-                else ERASE_RANGE(0xC000, 0x4000)
+                erase_blocks = {0x8000, 0x2000, 0x2000, 0x4000};
                 break;
 
             case 0x49B0:
@@ -278,30 +265,16 @@ private:
             case 0x9389:
             case 0x9589:
             case 0x9789:
-                ERASE_RANGE(0, 0x1000)
-                else ERASE_RANGE(0x1000, 0x1000)
-                else ERASE_RANGE(0x2000, 0x1000)
-                else ERASE_RANGE(0x3000, 0x1000)
-                else ERASE_RANGE(0x4000, 0x1000)
-                else ERASE_RANGE(0x5000, 0x1000)
-                else ERASE_RANGE(0x6000, 0x1000)
-                else ERASE_RANGE(0x7000, 0x1000)
-                else ERASE_RANGE(0x8000, 0x8000)
+                erase_blocks = std::vector<uint32_t>(9, 0x1000);
+                erase_blocks[8] = 0x8000;
                 break;
 
             case 0x9089:
             case 0x9289:
             case 0x9489:
             case 0x9689:
-                ERASE_RANGE(0, 0x8000)
-                else ERASE_RANGE(0x8000, 0x1000)
-                else ERASE_RANGE(0x9000, 0x1000)
-                else ERASE_RANGE(0xA000, 0x1000)
-                else ERASE_RANGE(0xB000, 0x1000)
-                else ERASE_RANGE(0xC000, 0x1000)
-                else ERASE_RANGE(0xD000, 0x1000)
-                else ERASE_RANGE(0xE000, 0x1000)
-                else ERASE_RANGE(0xF000, 0x1000)
+                erase_blocks = std::vector<uint32_t>(9, 0x1000);
+                erase_blocks[0] = 0x8000;
                 break;
 
             case 0x49C2:
@@ -319,15 +292,20 @@ private:
             case 0xEE20:
             case 0xEF20:
             default:
-                ERASE_RANGE(0x0000, 0x2000)
-                else ERASE_RANGE(0x2000, 0x1000)
-                else ERASE_RANGE(0x3000, 0x1000)
-                else ERASE_RANGE(0x4000, 0x4000)
-                else ERASE_RANGE(0x8000, 0x8000)
+                erase_blocks = {0x2000, 0x1000, 0x1000, 0x4000, 0x8000};
                 break;
         }
 
-        #undef ERASE_RANGE
+        uint32_t erase_addr = 0, erase_sz = 0;
+        for (auto const& block_sz: erase_blocks) {
+            if (address < erase_addr + block_sz) {
+                erase_sz = block_sz;
+                break;
+            }
+            erase_addr += block_sz;
+        }
+
+        if (!erase_sz) return 0;
 
         uint32_t offset = address - erase_addr;
         uint8_t *extra = nullptr;
@@ -343,7 +321,7 @@ private:
             free(extra);
         }
 
-        return erase_addr - offset;
+        return erase_sz - offset;
     }
 
     // pretty messy function, but gets the job done
