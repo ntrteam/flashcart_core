@@ -19,11 +19,11 @@ uint32_t Flashcart::readFlash(uint32_t address, uint32_t length, uint8_t *buffer
 
     uint32_t curpos;
     for (curpos = 0; curpos < length;) {
+        showProgress(curpos, length - 1, "Reading");
         uint32_t read_sz = rawRead(address + curpos, length - curpos, buffer + curpos);
         if (!read_sz) break;
 
         curpos += read_sz;
-        showProgress(curpos, length, "Reading");
     }
 
     return curpos;
@@ -39,11 +39,11 @@ uint32_t Flashcart::writeFlash(uint32_t address, uint32_t length, const uint8_t 
         if (!erase_sz) break;
 
         for (uint32_t end = curpos + erase_sz; curpos < end;) {
+            showProgress(curpos, length - 1, "Writing");
             uint32_t write_sz = rawWrite(address + curpos, length - curpos, buffer + curpos);
             if (!write_sz) break;
 
             curpos += write_sz;
-            showProgress(curpos, length, "Writing");
         }
     }
 

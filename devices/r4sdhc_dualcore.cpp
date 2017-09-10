@@ -1,4 +1,4 @@
-#include "../device.h"
+#include "device.h"
 
 class R4SDHC_DualCore : Flashcart {
 private:

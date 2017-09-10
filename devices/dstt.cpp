@@ -113,7 +113,11 @@ const uint16_t supported_flashchips[] = {
 class DSTT : Flashcart {
 private:
     uint32_t m_flashchip;
-    int m_cmd_type;
+
+    enum {
+        DSTT_CMD_TYPE_1,
+        DSTT_CMD_TYPE_2
+    } m_cmd_type;
 
     uint32_t dstt_flash_command(uint8_t data0, uint32_t data1, uint16_t data2)
     {
@@ -135,9 +139,9 @@ private:
 
     void dstt_reset()
     {
-        if (m_cmd_type == 2) {
+        if (m_cmd_type == DSTT_CMD_TYPE_2) {
             dstt_flash_command(0x87, 0, 0xFF);
-        } else if (m_cmd_type == 1) {
+        } else if (m_cmd_type == DSTT_CMD_TYPE_1) {
             dstt_flash_command(0x87, 0, 0xF0);
         }
     }
@@ -179,7 +183,7 @@ private:
 
     void Erase_Block(uint32_t offset, uint32_t length)
     {
-        if (m_cmd_type == 1) {
+        if (m_cmd_type == DSTT_CMD_TYPE_1) {
             dstt_flash_command(0x87, 0x5555, 0xAA);
             dstt_flash_command(0x87, 0x2AAA, 0x55);
             dstt_flash_command(0x87, 0x5555, 0x80);
@@ -187,7 +191,7 @@ private:
             dstt_flash_command(0x87, 0x2AAA, 0x55);
 
             dstt_flash_command(0x87, offset, 0x30);
-        } else if (m_cmd_type == 2) {
+        } else if (m_cmd_type == DSTT_CMD_TYPE_2) {
             dstt_flash_command(0x87, offset, 0x50); // Clear Status Register
             dstt_flash_command(0x87, offset, 0x20); // Erase Setup
             dstt_flash_command(0x87, offset, 0xD0); // Erase Confirm
@@ -225,7 +229,9 @@ private:
     uint32_t rawErase(uint32_t address) {
 
         #define ERASE_RANGE(min, sz) \
-            if (address >= (min) && address < ((min)+(sz))) { erase_addr = (min); erase_sz = (sz); }
+            if (address >= (min) && address < ((min)+(sz))) { \
+                erase_addr = (min); erase_sz = (sz); \
+            }
 
         uint32_t erase_addr = 0, erase_sz = 0;
         switch(m_flashchip)
@@ -343,7 +349,7 @@ private:
     // pretty messy function, but gets the job done
     uint32_t rawWrite(uint32_t offset, uint32_t length, const uint8_t *buffer)
     {
-        if (m_cmd_type == 2) {
+        if (m_cmd_type == DSTT_CMD_TYPE_2) {
             dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
             dstt_flash_command(0x87, offset, 0x40); // Word Write
             dstt_flash_command(0x87, offset, *buffer);
@@ -353,7 +359,7 @@ private:
 
             dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
             //dstt_flash_command(0x87, offset, 0xFF); // Reset (offset not required)
-        } else if (m_cmd_type == 1) {
+        } else if (m_cmd_type == DSTT_CMD_TYPE_1) {
             dstt_flash_command(0x87, 0x5555, 0xAA);
             dstt_flash_command(0x87, 0x2AAA, 0x55);
             dstt_flash_command(0x87, 0x5555, 0xA0);
@@ -394,10 +400,10 @@ public:
             case 0x9589:
             case 0x9689:
             case 0x9789:
-                m_cmd_type = 2;
+                m_cmd_type = DSTT_CMD_TYPE_2;
                 break;
             default:
-                m_cmd_type = 1;
+                m_cmd_type = DSTT_CMD_TYPE_1;
                 break;
         }
 
