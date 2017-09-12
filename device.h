@@ -57,4 +57,70 @@ protected:
     static void showProgress(uint32_t current, uint32_t total, const char* status_string);
 };
 
+template <class T, void (T::*fn)(uint32_t, uint8_t *), uint32_t alignment>
+uint32_t Flashcart::read_wrapper(uint32_t address, uint32_t length, uint8_t *buffer) {
+    uint8_t *buf = buffer;
+    uint32_t round_addr = PAGE_ROUND_DOWN(address, alignment);
+    uint32_t offset = address - round_addr;
+    length = std::min<uint32_t>(length, alignment - offset);
+    if (length < alignment || offset) {
+        buf = (uint8_t*)malloc(alignment);
+    }
+
+    ((T*)this->*(fn))(round_addr, buf);
+
+    if (buf != buffer) {
+        memcpy(buffer, buf + offset, length);
+        free(buf);
+    }
+
+    return length;
+}
+
+// Infinite recursion if write alignment and erase alignment do not line up.
+// writeFlash -> erase_wrapper -> writeFlash...
+// It is also not a good idea to use this if alignment for writing is not 1.
+template <class T, void (T::*fn)(uint32_t), uint32_t alignment>
+uint32_t Flashcart::erase_wrapper(uint32_t address) {
+    uint32_t round_addr = PAGE_ROUND_DOWN(address, alignment);
+    uint32_t offset = address - round_addr;
+    uint8_t *extra = nullptr;
+    if (offset) {
+        extra = (uint8_t*)malloc(offset);
+        readFlash(round_addr, offset, extra);
+    }
+
+    ((T*)this->*(fn))(round_addr);
+
+    if (extra != nullptr) {
+        writeFlash(round_addr, offset, extra);
+        free(extra);
+    }
+
+    return alignment - offset;
+}
+
+// This should only be used for carts w/ multi-byte writes.
+template <class T, void (T::*fn)(uint32_t, const uint8_t *), uint32_t alignment>
+uint32_t Flashcart::write_wrapper(uint32_t address, uint32_t length, const uint8_t *buffer) {
+    uint8_t *buf = buffer;
+    uint32_t round_addr = PAGE_ROUND_DOWN(address, alignment);
+    uint32_t offset = address - round_addr;
+    length = std::min<uint32_t>(length, alignment - offset);
+
+    if (length < alignment || offset) {
+        buf = (uint8_t*)malloc(alignment);
+        readFlash(round_addr, alignment, buf);
+        memcpy(buf + offset, buffer, length);
+    }
+
+    ((T*)this->*(fn))(round_addr, buf);
+
+    if (buf != buffer) {
+        free(buf);
+    }
+
+    return length;
+}
+
 extern std::vector<Flashcart*> *flashcart_list;
