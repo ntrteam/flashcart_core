@@ -37,6 +37,7 @@ protected:
     // override these in platform.cpp
     static void sendCommand(const uint8_t *cmdbuff, uint16_t response_len, uint8_t *resp, uint32_t latency=32);
     static void showProgress(uint32_t current, uint32_t total, const char* status_string);
+    static int logMessage(const char *fmt, ...);
 };
 
 extern std::vector<Flashcart*> *flashcart_list;
