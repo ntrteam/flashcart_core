@@ -92,7 +92,7 @@ Known flashchips that are "unsupported":
     0xDAC2 "MACRONIX MX29LV800T"
 */
 
-#include "device.h"
+#include "../device.h"
 
 #include <stdlib.h>
 #include <cstring>
@@ -114,6 +114,11 @@ class DSTT : Flashcart {
 private:
     uint32_t m_flashchip;
 
+    enum {
+        DSTT_CMD_TYPE_1,
+        DSTT_CMD_TYPE_2
+    } m_cmd_type;
+
     uint32_t dstt_flash_command(uint8_t data0, uint32_t data1, uint16_t data2)
     {
         uint8_t cmd[8];
@@ -134,25 +139,10 @@ private:
 
     void dstt_reset()
     {
-        switch(m_flashchip)
-        {
-            case 0x49B0:
-            case 0x9089:
-            case 0x912C:
-            case 0x9189:
-            case 0x922C:
-            case 0x9289:
-            case 0x9320:
-            case 0x9389:
-            case 0x9489:
-            case 0x9589:
-            case 0x9689:
-            case 0x9789:
-                dstt_flash_command(0x87, 0, 0xFF);
-                break;
-            default:
-                dstt_flash_command(0x87, 0, 0xF0);
-                break;
+        if (m_cmd_type == DSTT_CMD_TYPE_2) {
+            dstt_flash_command(0x87, 0, 0xFF);
+        } else if (m_cmd_type == DSTT_CMD_TYPE_1) {
+            dstt_flash_command(0x87, 0, 0xF0);
         }
     }
 
@@ -184,7 +174,7 @@ private:
 
     bool flashchip_supported(uint32_t flashchip)
     {
-        for (int i = 0; i < sizeof(supported_flashchips) / 2; i++)
+        for (unsigned int i = 0; i < sizeof(supported_flashchips) / 2; ++i)
             if (supported_flashchips[i] == (uint16_t)flashchip)
                 return true;
 
@@ -193,70 +183,58 @@ private:
 
     void Erase_Block(uint32_t offset, uint32_t length)
     {
-        dstt_flash_command(0x87, 0x5555, 0xAA);
-        dstt_flash_command(0x87, 0x2AAA, 0x55);
-        dstt_flash_command(0x87, 0x5555, 0x80);
-        dstt_flash_command(0x87, 0x5555, 0xAA);
-        dstt_flash_command(0x87, 0x2AAA, 0x55);
+        if (m_cmd_type == DSTT_CMD_TYPE_1) {
+            dstt_flash_command(0x87, 0x5555, 0xAA);
+            dstt_flash_command(0x87, 0x2AAA, 0x55);
+            dstt_flash_command(0x87, 0x5555, 0x80);
+            dstt_flash_command(0x87, 0x5555, 0xAA);
+            dstt_flash_command(0x87, 0x2AAA, 0x55);
 
-        dstt_flash_command(0x87, offset, 0x30);
+            dstt_flash_command(0x87, offset, 0x30);
+        } else if (m_cmd_type == DSTT_CMD_TYPE_2) {
+            dstt_flash_command(0x87, offset, 0x50); // Clear Status Register
+            dstt_flash_command(0x87, offset, 0x20); // Erase Setup
+            dstt_flash_command(0x87, offset, 0xD0); // Erase Confirm
 
+            // TODO: Timeout if something goes wrong.
+            while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
+
+            dstt_flash_command(0x87, offset, 0x50); // Clear Status Register
+            // dstt_flash_command(0x87, offset, 0xFF); // Reset
+        }
+
+        dstt_reset();
         uint32_t end_offset = offset + length;
-        while (offset < end_offset)
+        for (; offset < end_offset; offset += 4)
         {
+            // TODO: Timeout if something goes wrong.
             while (dstt_flash_command(0, offset, 0) != 0xFFFFFFFF);
-            offset += 4;
         }
 
         dstt_reset();
     }
 
-    void Erase_Block_Type2(uint32_t offset, uint32_t length)
-    {
-        dstt_flash_command(0x87, offset, 0x50); // Clear Status Register
-        dstt_flash_command(0x87, offset, 0x20); // Block Erase 1
-        dstt_flash_command(0x87, offset, 0xD0); // Block Erase 2
+    void Erase_Chip() {
+        std::vector<uint32_t> erase_blocks;
 
-        while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
-
-        dstt_flash_command(0x87, offset, 0x50); // Clear Status Register
-        dstt_flash_command(0x87, offset, 0xFF); // Reset
-
-        uint32_t end_offset = offset + length;
-        while (offset < end_offset)
-        {
-            while (dstt_flash_command(0, offset, 0) != 0xFFFFFFFF);
-            offset += 4;
-        }
-    }
-
-    void Erase_Chip()
-    {
         switch(m_flashchip)
         {
-            case 0x41F:
+            case 0x041F:
+            case 0x9089:
             case 0xA01F:
             case 0xA31F:
             case 0xB91C:
-                Erase_Block(0, 0x10000);
+                erase_blocks = {0x10000};
                 break;
 
-            case 0x9089:
-                Erase_Block_Type2(0, 0x10000);
-                break;
-
-            case 0x51F:
-                Erase_Block(0, 0x4000);
-                Erase_Block(0x4000, 0x2000);
-                Erase_Block(0x6000, 0x2000);
-                Erase_Block(0x8000, 0x8000);
+            case 0x051F:
+                erase_blocks = {0x4000, 0x2000, 0x2000, 0x8000};
                 break;
 
             case 0x80BF:
             case 0xC11F:
             case 0xC31F:
-                for (int i = 0; i < 29; i++)
-                    Erase_Block(i*0x800, 0x800);
+                erase_blocks = std::vector<uint32_t>(0x20, 0x800);
                 break;
 
             case 0x1A37:
@@ -265,10 +243,7 @@ private:
             case 0xC298:
             case 0xC420:
             case 0xC4C2:
-                Erase_Block(0, 0x8000);
-                Erase_Block(0x8000, 0x2000);
-                Erase_Block(0xA000, 0x2000);
-                Erase_Block(0xC000, 0x4000);
+                erase_blocks = {0x8000, 0x2000, 0x2000, 0x4000};
                 break;
 
             case 0x49B0:
@@ -279,29 +254,15 @@ private:
             case 0x9389:
             case 0x9589:
             case 0x9789:
-                Erase_Block_Type2(0, 0x1000);
-                Erase_Block_Type2(0x1000, 0x1000);
-                Erase_Block_Type2(0x2000, 0x1000);
-                Erase_Block_Type2(0x3000, 0x1000);
-                Erase_Block_Type2(0x4000, 0x1000);
-                Erase_Block_Type2(0x5000, 0x1000);
-                Erase_Block_Type2(0x6000, 0x1000);
-                Erase_Block_Type2(0x7000, 0x1000);
-                Erase_Block_Type2(0x8000, 0x8000);
+                erase_blocks = std::vector<uint32_t>(9, 0x1000);
+                erase_blocks[8] = 0x8000;
                 break;
 
             case 0x9289:
             case 0x9489:
             case 0x9689:
-                Erase_Block_Type2(0, 0x8000);
-                Erase_Block_Type2(0x8000, 0x1000);
-                Erase_Block_Type2(0x9000, 0x1000);
-                Erase_Block_Type2(0xA000, 0x1000);
-                Erase_Block_Type2(0xB000, 0x1000);
-                Erase_Block_Type2(0xC000, 0x1000);
-                Erase_Block_Type2(0xD000, 0x1000);
-                Erase_Block_Type2(0xE000, 0x1000);
-                Erase_Block_Type2(0xF000, 0x1000);
+                erase_blocks = std::vector<uint32_t>(9, 0x1000);
+                erase_blocks[0] = 0x8000;
                 break;
 
             case 0x49C2:
@@ -319,52 +280,41 @@ private:
             case 0xEE20:
             case 0xEF20:
             default:
-                Erase_Block(0x0000, 0x2000);
-                Erase_Block(0x2000, 0x1000);
-                Erase_Block(0x3000, 0x1000);
-                Erase_Block(0x4000, 0x4000);
-                Erase_Block(0x8000, 0x8000);
+                erase_blocks = {0x2000, 0x1000, 0x1000, 0x4000, 0x8000};
                 break;
+        }
+
+        uint32_t erase_addr = 0;
+        for (auto const& block_sz: erase_blocks) {
+            Erase_Block(erase_addr, block_sz);
+            erase_addr += block_sz;
         }
     }
 
     // pretty messy function, but gets the job done
     void Program_Byte(uint32_t offset, uint8_t data)
     {
-        switch(m_flashchip)
-        {
-            case 0x49B0:
-            case 0x9089:
-            case 0x912C:
-            case 0x9189:
-            case 0x922C:
-            case 0x9289:
-            case 0x9320:
-            case 0x9389:
-            case 0x9489:
-            case 0x9689:
-            case 0x9589:
-            case 0x9789:
-                dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
-                dstt_flash_command(0x87, offset, 0x40); // Word Write
-                dstt_flash_command(0x87, offset, data);
+        if (m_cmd_type == DSTT_CMD_TYPE_2) {
+            dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
+            dstt_flash_command(0x87, offset, 0x40); // Word Write
+            dstt_flash_command(0x87, offset, data);
 
-                while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
+            // TODO: Timeout if something goes wrong.
+            while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
 
-                dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
-                dstt_flash_command(0x87, offset, 0xFF); // Reset (offset not required)
-                break;
-            default:
-                dstt_flash_command(0x87, 0x5555, 0xAA);
-                dstt_flash_command(0x87, 0x2AAA, 0x55);
-                dstt_flash_command(0x87, 0x5555, 0xA0);
-                dstt_flash_command(0x87, offset, data);
+            dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
+            //dstt_flash_command(0x87, offset, 0xFF); // Reset (offset not required)
+        } else if (m_cmd_type == DSTT_CMD_TYPE_1) {
+            dstt_flash_command(0x87, 0x5555, 0xAA);
+            dstt_flash_command(0x87, 0x2AAA, 0x55);
+            dstt_flash_command(0x87, 0x5555, 0xA0);
+            dstt_flash_command(0x87, offset, data);
 
-                while ((uint8_t)dstt_flash_command(0, offset, 0) != data);
-
-                dstt_reset();
-                break;
+            // TODO: Timeout if something goes wrong.
+            while ((uint8_t)dstt_flash_command(0, offset, 0) != data);
         }
+
+        dstt_reset();
     }
 
 public:
@@ -380,6 +330,26 @@ public:
         m_flashchip = get_flashchip_id();
         if (!flashchip_supported(m_flashchip))
             return false;
+
+        switch(m_flashchip) {
+            case 0x49B0:
+            case 0x9089:
+            case 0x912C:
+            case 0x9189:
+            case 0x922C:
+            case 0x9289:
+            case 0x9320:
+            case 0x9389:
+            case 0x9489:
+            case 0x9589:
+            case 0x9689:
+            case 0x9789:
+                m_cmd_type = DSTT_CMD_TYPE_2;
+                break;
+            default:
+                m_cmd_type = DSTT_CMD_TYPE_1;
+                break;
+        }
 
         return true;
     }
@@ -398,7 +368,7 @@ public:
         {
             uint32_t data = dstt_flash_command(0, address, 0);
             showProgress(address+1, end_address, "Reading");
-            
+
             buffer[i++] = (uint8_t)((data >> 0) & 0xFF);
             buffer[i++] = (uint8_t)((data >> 8) & 0xFF);
             buffer[i++] = (uint8_t)((data >> 16) & 0xFF);
@@ -417,7 +387,7 @@ public:
         // todo: read and erase properly
         Erase_Chip();
 
-        for(int i = 0; i < length; i++)
+        for(uint32_t i = 0; i < length; i++)
         {
             Program_Byte(address++, buffer[i]);
             showProgress(i+1, length, "Writing");
