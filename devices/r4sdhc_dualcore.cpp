@@ -28,16 +28,17 @@ private:
     }
 
     uint8_t encrypt(uint8_t dec) {
-        if (dec & BIT(0)) dec |= BIT(5);
-        if (dec & BIT(1)) dec |= BIT(4);
-        if (dec & BIT(2)) dec |= BIT(1);
-        if (dec & BIT(3)) dec |= BIT(3);
-        if (dec & BIT(4)) dec |= BIT(6);
-        if (dec & BIT(5)) dec |= BIT(7);
-        if (dec & BIT(6)) dec |= BIT(0);
-        if (dec & BIT(7)) dec |= BIT(2);
-        dec ^= 0x98;
-        return dec;
+        uint8_t enc = 0
+        if (dec & BIT(0)) enc |= BIT(5);
+        if (dec & BIT(1)) enc |= BIT(4);
+        if (dec & BIT(2)) enc |= BIT(1);
+        if (dec & BIT(3)) enc |= BIT(3);
+        if (dec & BIT(4)) enc |= BIT(6);
+        if (dec & BIT(5)) enc |= BIT(7);
+        if (dec & BIT(6)) enc |= BIT(0);
+        if (dec & BIT(7)) enc |= BIT(2);
+        enc ^= 0x98;
+        return enc;
     }
 
     void erase_cmd(uint32_t address) {

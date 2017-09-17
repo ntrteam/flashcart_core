@@ -1,5 +1,5 @@
 #include "device.h"
-#include "delay.h"
+// #include "delay.h"
 
 #include <cstring>
 #include <algorithm>
@@ -83,14 +83,13 @@ private:
     void r4i_wait_flash_busy() {
         uint32_t state;
         do {
-            ioDelay( 16 * 10 );
+            // We never had issues with the R4i Gold 3DS, just the ak2i.
+            //ioDelay( 16 * 10 );
             sendCommand(cmdWaitFlashBusy, 4, (uint8_t *)&state, 32);
         } while ((state & 1) != 0);
     }
 
 protected:
-    uint32_t m_hwrevision;
-
     static const uint8_t cmdGetHWRevision[8];
     static const uint8_t cmdReadFlash[8];
     static const uint8_t cmdEraseFlash[8];
@@ -99,15 +98,18 @@ protected:
 public:
     R4i_Gold_3DS() : Flashcart("R4i Gold 3DS", 0x400000) { }
 
-    const char *getAuthor() { return "kitling"; }
+    const char *getAuthor() { return "Kitlith"; }
     const char *getDescription() { return "Works with many R4i Gold 3DS variants:\n * R4i Gold 3DS (RTS, rev A5/A6/A7) (r4ids.cn)\n * R4i Gold 3DS Starter (r4ids.cn)\n * R4 3D Revolution (r4idsn.com)\n * Infinity 3 R4i (r4infinity.com)"; }
 
     bool initialize()
     {
-        sendCommand(cmdGetHWRevision, 4, (uint8_t*)&m_hwrevision, 0);
-        if (m_hwrevision != 0xA7A7A7A7 && m_hwrevision != 0xA6A6A6A6 && m_hwrevision != 0xA5A5A5A5) return false;
+        uint32_t hw_revision;
+        sendCommand(cmdGetHWRevision, 4, (uint8_t*)&hw_revision, 0);
+        if (hw_revision == 0xA7A7A7A7 ||
+            hw_revision == 0xA6A6A6A6 ||
+            hw_revision == 0xA5A5A5A5) return true;
 
-        return true;
+        return false;
     }
 
     void shutdown() { }
