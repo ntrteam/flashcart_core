@@ -16,4 +16,4 @@ Flashcart::Flashcart(const char* name, const size_t max_length)
 // Allow platforms to not provide these.
 __attribute__((weak)) void Flashcart::showProgress(uint32_t current, uint32_t total, const char* status_string) { ; }
 
-__attribute__((weak)) int Flashcart::logMessage(const char *fmt, ...) { return 0; }
+__attribute__((weak)) int Flashcart::logMessage(log_priority priority, const char *fmt, ...) { return 0; }
