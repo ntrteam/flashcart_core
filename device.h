@@ -14,6 +14,14 @@ using std::uint32_t;
 
 #define BIT(n) (1 << (n))
 
+enum log_priority {
+    LOG_DEBUG = 0, // Will probably spam logs, only use when debugging.
+    LOG_INFO, // Reccomended default logfile level
+    LOG_NOTICE, // Reccomended default display level, if implemented.
+    LOG_WARN,
+    LOG_ERR
+};
+
 class Flashcart {
 public:
     Flashcart(const char* name, const size_t max_length);
@@ -37,7 +45,7 @@ protected:
     // override these in platform.cpp
     static void sendCommand(const uint8_t *cmdbuff, uint16_t response_len, uint8_t *resp, uint32_t latency=32);
     static void showProgress(uint32_t current, uint32_t total, const char* status_string);
-    static int logMessage(const char *fmt, ...);
+    static int logMessage(log_priority priority, const char *fmt, ...);
 };
 
 extern std::vector<Flashcart*> *flashcart_list;
