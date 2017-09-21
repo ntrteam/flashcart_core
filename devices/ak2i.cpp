@@ -32,11 +32,13 @@ protected:
             // hopefully soon it will no longer be needed.
             // ioDelay( 16 * 10 );
             sendCommand(cmdWaitFlashBusy, 4, (uint8_t *)&state, 4);
+            logMessage(LOG_DEBUG, "AK2i: waitFlashBusy = 0x%08x", state);
         } while ((state & 1) != 0);
     }
 
     void a2ki_read(uint8_t *outbuf, uint32_t address) {
         uint8_t cmdbuf[8];
+        logMessage(LOG_DEBUG, "AK2i: read(0x%08x)", address);
         memcpy(cmdbuf, cmdReadFlash, 8);
         cmdbuf[1] = (address >> 24) & 0xFF;
         cmdbuf[2] = (address >> 16) & 0xFF;
@@ -44,12 +46,13 @@ protected:
         cmdbuf[4] = (address >>  0) & 0xFF;
 
         sendCommand(cmdbuf, 0x200, outbuf, 2);
-        a2ki_wait_flash_busy();
+        // a2ki_wait_flash_busy();
     }
 
     void a2ki_erase(uint32_t address) {
         uint8_t cmdbuf[8];
 
+        logMessage(LOG_DEBUG, "AK2i: erase(0x%08x)", address);
         if (hw_revision == 0x44)
         {
             memcpy(cmdbuf, cmdEraseFlash, 8);
@@ -71,6 +74,7 @@ protected:
     void a2ki_writebyte(uint32_t address, uint8_t value) {
         uint8_t cmdbuf[8];
 
+        logMessage(LOG_DEBUG, "AK2i: write(0x%08x) = 0x%02x", address, value);
         if (hw_revision == 0x44)
         {
             memcpy(cmdbuf, cmdWriteByteFlash, 8);
@@ -94,9 +98,11 @@ protected:
         if (status == write_status) return;
 
         if (status) {
+            logMessage(LOG_INFO, "AK2i: Writing");
             sendCommand(cmdUnlockFlash, 0, nullptr, 0);
             sendCommand(cmdUnlockASIC, 0, nullptr, 0);
         } else {
+            logMessage(LOG_INFO, "AK2i: Reading");
             sendCommand(cmdLockFlash, 0, nullptr, 0);
         }
 
@@ -120,9 +126,12 @@ public:
 
     bool initialize()
     {
-        uint8_t hwrev[4], garbage[4];
-        sendCommand(cmdGetHWRevision, 4, hwrev, 0);
-        hw_revision = hwrev[0];
+        uint32_t hwrev;
+        uint8_t garbage[4];
+        logMessage(LOG_INFO, "AK2i: Init");
+        sendCommand(cmdGetHWRevision, 4, (uint8_t*)&hwrev, 0);
+        logMessage(LOG_NOTICE, "AK2i: HW Revision = %08x", hwrev);
+        hw_revision = hwrev & 0xFF;
 
         if (hw_revision != 0x44 && hw_revision != 0x81) return false;
 
@@ -139,12 +148,14 @@ public:
     void shutdown()
     {
         uint32_t garbage;
+        logMessage(LOG_INFO, "AK2i: Shutdown");
         setWriteState(false);
         sendCommand(cmdActiveFatMap, 4, (uint8_t *)&garbage, 4);
     }
 
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer)
     {
+        logMessage(LOG_INFO, "AK2i: readFlash(addr=0x%08x, length=0x%x)");
         setWriteState(false);
 
         if (hw_revision == 0x81) sendCommand(cmdSetFlash1681_81, 0, nullptr, 20);
@@ -160,6 +171,7 @@ public:
 
     bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
     {
+        logMessage(LOG_INFO, "AK2i: writeFlash(addr=0x%08x, length=0x%x)");
         setWriteState(true);
 
         if (hw_revision == 0x81) sendCommand(cmdSetFlash1681_81, 0, nullptr, 20);
@@ -191,6 +203,7 @@ public:
         uint32_t buf_size = PAGE_ROUND_UP(firm_offset + firm_size, page_size);
         uint8_t *buf = (uint8_t *)calloc(buf_size, sizeof(uint8_t));
 
+        logMessage(LOG_INFO, "AK2i: Injecting Ntrboot");
         readFlash(blowfish_adr, buf_size, buf); // Read in data that shouldn't be changed
         memcpy(buf, blowfish_key, 0x1048);
         memcpy(buf + firm_offset, firm, firm_size);

@@ -139,6 +139,7 @@ private:
 
     void dstt_reset()
     {
+        logMessage(LOG_INFO, "DSTT: Reset");
         if (m_cmd_type == DSTT_CMD_TYPE_2) {
             dstt_flash_command(0x87, 0, 0xFF);
         } else if (m_cmd_type == DSTT_CMD_TYPE_1) {
@@ -183,6 +184,7 @@ private:
 
     void Erase_Block(uint32_t offset, uint32_t length)
     {
+        logMessage(LOG_DEBUG, "DSTT: erase(0x%08x)", offset);
         if (m_cmd_type == DSTT_CMD_TYPE_1) {
             dstt_flash_command(0x87, 0x5555, 0xAA);
             dstt_flash_command(0x87, 0x2AAA, 0x55);
@@ -216,6 +218,7 @@ private:
 
     void Erase_Chip() {
         std::vector<uint32_t> erase_blocks;
+        logMessage(LOG_INFO, "DSTT: Erasing Flash");
 
         switch(m_flashchip)
         {
@@ -294,6 +297,7 @@ private:
     // pretty messy function, but gets the job done
     void Program_Byte(uint32_t offset, uint8_t data)
     {
+        logMessage(LOG_DEBUG, "DSTT: write(0x%08x) = 0x%02x", offset, data);
         if (m_cmd_type == DSTT_CMD_TYPE_2) {
             dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
             dstt_flash_command(0x87, offset, 0x40); // Word Write
@@ -325,9 +329,11 @@ public:
 
     bool initialize()
     {
+        logMessage(LOG_INFO, "DSTT: Init");
         dstt_flash_command(0x86, 0, 0);
 
         m_flashchip = get_flashchip_id();
+        logMessage(LOG_NOTICE, "DSTT: Flashchip ID = 0x%04x", m_flashchip);
         if (!flashchip_supported(m_flashchip))
             return false;
 
@@ -359,6 +365,7 @@ public:
     }
 
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
+        logMessage(LOG_INFO, "DSTT: Reading Flash");
         dstt_reset();
 
         uint32_t i = 0;
@@ -386,6 +393,7 @@ public:
         // really fucking temporary, writeFlash can only do full length writes
         // todo: read and erase properly
         Erase_Chip();
+        logMessage(LOG_INFO, "DSTT: Writing Flash");
 
         for(uint32_t i = 0; i < length; i++)
         {
@@ -399,10 +407,13 @@ public:
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) {
         // todo: we just read and write the entire flash chip because we don't align blocks
         // properly, when writeFlash works, don't use memcpy
+        logMessage(LOG_INFO, "DSTT: Injecting Ntrboot");
 
         // don't bother installing if we can't fit
-        if (firm_size > m_max_length - 0x7E00)
+        if (firm_size > m_max_length - 0x7E00) {
+            logMessage(LOG_ERR, "DSTT: Firm too large!");
             return false; // todo: return error code
+        }
 
         uint8_t* buffer = (uint8_t*)malloc(m_max_length);
         readFlash(0, m_max_length, buffer);
