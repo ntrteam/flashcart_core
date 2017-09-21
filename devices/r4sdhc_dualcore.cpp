@@ -28,7 +28,7 @@ private:
     }
 
     uint8_t encrypt(uint8_t dec) {
-        uint8_t enc = 0
+        uint8_t enc = 0;
         if (dec & BIT(0)) enc |= BIT(5);
         if (dec & BIT(1)) enc |= BIT(4);
         if (dec & BIT(2)) enc |= BIT(1);
