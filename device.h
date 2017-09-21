@@ -19,7 +19,8 @@ enum log_priority {
     LOG_INFO, // Reccomended default logfile level
     LOG_NOTICE, // Reccomended default display level, if implemented.
     LOG_WARN,
-    LOG_ERR
+    LOG_ERR,
+    LOG_PRIORITY_MAX
 };
 
 class Flashcart {
