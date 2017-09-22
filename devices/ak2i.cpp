@@ -155,7 +155,7 @@ public:
 
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer)
     {
-        logMessage(LOG_INFO, "AK2i: readFlash(addr=0x%08x, length=0x%x)");
+        logMessage(LOG_INFO, "AK2i: readFlash(addr=0x%08x, size=0x%x)");
         setWriteState(false);
 
         if (hw_revision == 0x81) sendCommand(cmdSetFlash1681_81, 0, nullptr, 20);
@@ -171,7 +171,7 @@ public:
 
     bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
     {
-        logMessage(LOG_INFO, "AK2i: writeFlash(addr=0x%08x, length=0x%x)");
+        logMessage(LOG_INFO, "AK2i: writeFlash(addr=0x%08x, size=0x%x)");
         setWriteState(true);
 
         if (hw_revision == 0x81) sendCommand(cmdSetFlash1681_81, 0, nullptr, 20);
