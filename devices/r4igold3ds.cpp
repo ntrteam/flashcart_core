@@ -44,6 +44,7 @@ private:
 
     void r4i_read(uint8_t *outbuf, uint32_t address) {
         uint8_t cmdbuf[8];
+        logMessage(LOG_DEBUG, "R4iGold: read(0x%08x)", address);
         memcpy(cmdbuf, cmdReadFlash, 8);
         cmdbuf[1] = (address >> 16) & 0xFF;
         cmdbuf[2] = (address >>  8) & 0xFF;
@@ -57,6 +58,7 @@ private:
     {
         uint32_t status;
         uint8_t cmdbuf[8];
+        logMessage(LOG_DEBUG, "R4iGold: erase(0x%08x)", address);
         memcpy(cmdbuf, cmdEraseFlash, 8);
         cmdbuf[1] = (address >> 16) & 0xFF;
         cmdbuf[2] = (address >>  8) & 0xFF;
@@ -70,6 +72,7 @@ private:
     {
         uint32_t status;
         uint8_t cmdbuf[8];
+        logMessage(LOG_DEBUG, "R4iGold: write(0x%08x) = 0x%02x", address, value);
         memcpy(cmdbuf, cmdWriteByteFlash, 8);
         cmdbuf[1] = (address >> 16) & 0xFF;
         cmdbuf[2] = (address >>  8) & 0xFF;
@@ -86,6 +89,7 @@ private:
             // We never had issues with the R4i Gold 3DS, just the ak2i.
             //ioDelay( 16 * 10 );
             sendCommand(cmdWaitFlashBusy, 4, (uint8_t *)&state, 32);
+            logMessage(LOG_DEBUG, "R4iGold: waitFlashBusy = 0x%08x", state);
         } while ((state & 1) != 0);
     }
 
@@ -103,8 +107,10 @@ public:
 
     bool initialize()
     {
+        logMessage(LOG_INFO, "R4iGold: Init");
         uint32_t hw_revision;
         sendCommand(cmdGetHWRevision, 4, (uint8_t*)&hw_revision, 0);
+        logMessage(LOG_NOTICE, "R4iGold: HW Revision = %08x", hw_revision);
         if (hw_revision == 0xA7A7A7A7 ||
             hw_revision == 0xA6A6A6A6 ||
             hw_revision == 0xA5A5A5A5) return true;
@@ -112,10 +118,13 @@ public:
         return false;
     }
 
-    void shutdown() { }
+    void shutdown() {
+        logMessage(LOG_INFO, "R4iGold: Shutdown");
+    }
 
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer)
     {
+        logMessage(LOG_INFO, "R4iGold: readFlash(addr=0x%08x, size=0x%x)", address, length);
         for (uint32_t curpos=0; curpos < length; curpos+=0x200) {
             r4i_read(buffer + curpos, address + curpos);
             showProgress(curpos+1,length, "Reading");
@@ -126,6 +135,7 @@ public:
 
     bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
     {
+        logMessage(LOG_INFO, "R4iGold: writeFlash(addr=0x%08x, size=0x%x)", address, length);
         for (uint32_t addr=0; addr < length; addr+=0x10000)
             r4i_erase(address + addr);
 
@@ -143,6 +153,7 @@ public:
         const uint32_t firm_hdr_adr = 0xEE00;
         const uint32_t firm_adr = 0x80000;
 
+        logMessage(LOG_INFO, "R4iGold: Injecting ntrboot");
         uint8_t *chunk0 = (uint8_t *)malloc(0x10000);
         readFlash(blowfish_adr, 0x10000, chunk0);
         encrypt_memcpy(chunk0, blowfish_key, 0x1048);

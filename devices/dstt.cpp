@@ -365,7 +365,7 @@ public:
     }
 
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
-        logMessage(LOG_INFO, "DSTT: Reading Flash");
+        logMessage(LOG_INFO, "DSTT: readFlash(addr=0x%08x, size=0x%x)", address, length);
         dstt_reset();
 
         uint32_t i = 0;
@@ -393,7 +393,7 @@ public:
         // really fucking temporary, writeFlash can only do full length writes
         // todo: read and erase properly
         Erase_Chip();
-        logMessage(LOG_INFO, "DSTT: Writing Flash");
+        logMessage(LOG_INFO, "DSTT: writeFlash(addr=0x%08x, size=0x%x)", address, length);
 
         for(uint32_t i = 0; i < length; i++)
         {

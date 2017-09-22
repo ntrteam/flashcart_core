@@ -43,6 +43,7 @@ private:
 
     void erase_cmd(uint32_t address) {
         uint8_t cmdbuf[8];
+        logMessage(LOG_DEBUG, "R4SDHC: erase(0x%08x)", address);
         memcpy(cmdbuf, cmdEraseFlash, 8);
         cmdbuf[1] = (address >> 16) & 0xFF;
         cmdbuf[2] = (address >>  8) & 0xFF;
@@ -53,6 +54,7 @@ private:
 
     void write_cmd(uint32_t address, uint8_t value) {
         uint8_t cmdbuf[8];
+        logMessage(LOG_DEBUG, "R4SDHC: write(0x%08x) = 0x%02x", address, value);
         memcpy(cmdbuf, cmdWriteByteFlash, 8);
         cmdbuf[1] = (address >> 16) & 0xFF;
         cmdbuf[2] = (address >>  8) & 0xFF;
@@ -68,19 +70,27 @@ public:
     bool initialize() {
         uint8_t dummy[4];
 
+        logMessage(LOG_INFO, "R4SDHC: Init");
         sendCommand(cmdUnkD0AA, 4, dummy);
         sendCommand(cmdUnkD0, 0, nullptr);
         sendCommand(cmdUnkD0AA, 4, dummy);
         sendCommand(cmdUnkD0AA, 4, dummy);
 
+        logMessage(LOG_WARN, "R4SDHC: We have no way of detecting cart!");
         return true; // We have no way of checking yet.
     }
-    void shutdown() { }
+    void shutdown() {
+        logMessage(LOG_INFO, "R4SDHC: Shutdown");
+    }
 
     // We don't have a read command...
-    bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) { return false; }
+    bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
+        logMessage(LOG_ERR, "R4SDHC: readFlash not implemented!");
+        return false;
+    }
 
     bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {
+        logMessage(LOG_INFO, "R4SDHC: writeFlash(addr=0x%08x, size=0x%x)", address, length);
         for (uint32_t addr=0; addr < length; addr+=0x10000)
             erase_cmd(address + addr);
 
@@ -93,7 +103,10 @@ public:
     }
 
     // Need to find offsets first.
-    bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) { return false; }
+    bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) {
+        logMessage(LOG_ERR, "R4SDHC: ntrboot injection not implemented!");
+        return false;
+    }
 };
 
 const uint8_t R4SDHC_DualCore::cmdUnkD0AA[8] = {0xD0, 0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
