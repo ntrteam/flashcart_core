@@ -1,5 +1,4 @@
 #include "device.h"
-// #include "delay.h"
 
 #include <cstring>
 #include <algorithm>
@@ -86,8 +85,6 @@ private:
     void r4i_wait_flash_busy() {
         uint32_t state;
         do {
-            // We never had issues with the R4i Gold 3DS, just the ak2i.
-            //ioDelay( 16 * 10 );
             sendCommand(cmdWaitFlashBusy, 4, (uint8_t *)&state, 32);
             logMessage(LOG_DEBUG, "R4iGold: waitFlashBusy = 0x%08x", state);
         } while ((state & 1) != 0);

@@ -139,7 +139,7 @@ private:
 
     void dstt_reset()
     {
-        logMessage(LOG_INFO, "DSTT: Reset");
+        logMessage(LOG_DEBUG, "DSTT: Reset");
         if (m_cmd_type == DSTT_CMD_TYPE_2) {
             dstt_flash_command(0x87, 0, 0xFF);
         } else if (m_cmd_type == DSTT_CMD_TYPE_1) {
