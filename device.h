@@ -44,7 +44,7 @@ protected:
     const size_t m_max_length;
 
     // override these in platform.cpp
-    static void sendCommand(const uint8_t *cmdbuff, uint16_t response_len, uint8_t *resp, uint32_t latency=32);
+    static void sendCommand(const void *cmdbuf, uint16_t response_len, uint8_t *resp, uint32_t flags = 32);
     static void showProgress(uint32_t current, uint32_t total, const char* status_string);
     static int logMessage(log_priority priority, const char *fmt, ...);
 };
