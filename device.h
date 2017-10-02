@@ -37,14 +37,14 @@ public:
     const char *getName() { return m_name; }
     virtual const char *getAuthor() { return "unknown"; }
     virtual const char *getDescription() { return ""; }
-    virtual const size_t getMaxLength() { return m_max_length; }
+    virtual size_t getMaxLength() { return m_max_length; }
 
 protected:
     const char* m_name;
     const size_t m_max_length;
 
     // override these in platform.cpp
-    static void sendCommand(const void *cmdbuf, uint16_t response_len, uint8_t *resp, uint32_t flags = 32);
+    static void sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, uint32_t flags = 32);
     static void showProgress(uint32_t current, uint32_t total, const char* status_string);
     static int logMessage(log_priority priority, const char *fmt, ...);
 };

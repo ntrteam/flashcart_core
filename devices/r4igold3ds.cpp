@@ -53,7 +53,7 @@ private:
         r4i_wait_flash_busy();
     }
 
-    uint32_t r4i_erase(uint32_t address)
+    void r4i_erase(uint32_t address)
     {
         uint32_t status;
         uint8_t cmdbuf[8];
