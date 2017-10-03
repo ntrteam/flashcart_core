@@ -5,6 +5,10 @@
 
 #define BIT(n) (1 << (n))
 
+using ntrcard::sendCommand;
+using platform::logMessage;
+using platform::showProgress;
+
 class R4i_Gold_3DS : Flashcart {
 private:
     static uint8_t encrypt(uint8_t dec)

@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include <cstring>
 
+using ntrcard::sendCommand;
+using platform::logMessage;
+using platform::showProgress;
+
 class AK2i : Flashcart {
 protected:
     static const uint8_t ak2i_cmdWaitFlashBusy[8];

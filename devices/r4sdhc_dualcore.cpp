@@ -5,6 +5,10 @@
 
 #define BIT(n) (1 << (n))
 
+using ntrcard::sendCommand;
+using platform::logMessage;
+using platform::showProgress;
+
 class R4SDHC_DualCore : Flashcart {
 private:
     static const uint8_t cmdEraseFlash[8];

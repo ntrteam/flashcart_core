@@ -4,6 +4,9 @@
 #include <cstddef>
 #include <vector>
 
+#include "ntrcard.h"
+#include "platform.h"
+
 using std::uint8_t;
 using std::uint16_t;
 using std::uint32_t;
@@ -13,15 +16,6 @@ using std::uint32_t;
 #define PAGE_ROUND_DOWN(x, s) ( (x) & (~((s)-1)) )
 
 #define BIT(n) (1 << (n))
-
-enum log_priority {
-    LOG_DEBUG = 0, // Will probably spam logs, only use when debugging.
-    LOG_INFO, // Reccomended default logfile level
-    LOG_NOTICE, // Reccomended default display level, if implemented.
-    LOG_WARN,
-    LOG_ERR,
-    LOG_PRIORITY_MAX
-};
 
 class Flashcart {
 public:
@@ -42,11 +36,6 @@ public:
 protected:
     const char* m_name;
     const size_t m_max_length;
-
-    // override these in platform.cpp
-    static void sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, uint32_t flags = 32);
-    static void showProgress(uint32_t current, uint32_t total, const char* status_string);
-    static int logMessage(log_priority priority, const char *fmt, ...);
 };
 
 extern std::vector<Flashcart*> *flashcart_list;

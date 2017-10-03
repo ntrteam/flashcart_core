@@ -2,6 +2,10 @@
 
 #include "device.h"
 
+using ntrcard::sendCommand;
+using platform::logMessage;
+using platform::showProgress;
+
 class Example : Flashcart {
     public:
         // Name & Size of Flash Memory
