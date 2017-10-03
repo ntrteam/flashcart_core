@@ -5,6 +5,7 @@
 
 #define BIT(n) (1 << (n))
 
+namespace flashcart_core {
 using ntrcard::sendCommand;
 using platform::logMessage;
 using platform::showProgress;
@@ -120,3 +121,4 @@ const uint8_t R4SDHC_DualCore::cmdEraseFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00,
 const uint8_t R4SDHC_DualCore::cmdWriteByteFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00};
 
 // R4SDHC_DualCore r4sdhc_dualcore;
+}

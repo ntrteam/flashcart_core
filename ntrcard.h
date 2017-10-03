@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+namespace flashcart_core {
 namespace ntrcard {
 const uint32_t BLOWFISH_PS_N = 0x412;
 const uint32_t BLOWFISH_P_N = 0x12;
@@ -72,4 +73,5 @@ bool sendCommand(const std::uint64_t cmd, std::uint16_t resplen, std::uint8_t *r
 bool init();
 bool initKey1();
 bool initKey2();
+}
 }

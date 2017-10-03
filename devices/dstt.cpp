@@ -97,6 +97,7 @@ Known flashchips that are "unsupported":
 #include <stdlib.h>
 #include <cstring>
 
+namespace flashcart_core {
 using ntrcard::sendCommand;
 using platform::logMessage;
 using platform::showProgress;
@@ -433,3 +434,4 @@ public:
 };
 
 DSTT dstt;
+}

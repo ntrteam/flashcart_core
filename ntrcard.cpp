@@ -35,6 +35,7 @@ using std::size_t;
 #define CMD_KEY2_DATA_READ      0xB7ull
 #define CMD_KEY2_CHIPID         0xB8ull
 
+namespace flashcart_core {
 using ntrcard::BLOWFISH_PS_N;
 using ntrcard::BLOWFISH_P_N;
 using ntrcard::state;
@@ -236,5 +237,6 @@ bool initKey2() {
         return false;
     }
     return true;
+}
 }
 }

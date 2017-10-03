@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <cstring>
 
+namespace flashcart_core {
 using ntrcard::sendCommand;
 using platform::logMessage;
 using platform::showProgress;
@@ -228,3 +229,4 @@ const uint8_t AK2i::ak2i_cmdEraseFlash81[8] = {0xD4, 0x00, 0x00, 0x00, 0x30, 0x8
 const uint8_t AK2i::ak2i_cmdWriteByteFlash81[8] = {0xD4, 0x00, 0x00, 0x00, 0x30, 0xa0, 0x00, 0x63};
 
 AK2i ak2i;
+}

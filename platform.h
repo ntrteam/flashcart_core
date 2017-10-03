@@ -4,6 +4,7 @@
 
 #include "ntrcard.h"
 
+namespace flashcart_core {
 enum log_priority {
     LOG_DEBUG = 0, // Will probably spam logs, only use when debugging.
     LOG_INFO, // Reccomended default logfile level
@@ -25,4 +26,5 @@ void initKey2Seed(std::uint64_t x, std::uint64_t y);
 
 void showProgress(std::uint32_t current, std::uint32_t total, const char* status_string);
 int logMessage(log_priority priority, const char *fmt, ...);
+}
 }

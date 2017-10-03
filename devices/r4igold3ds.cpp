@@ -5,6 +5,7 @@
 
 #define BIT(n) (1 << (n))
 
+namespace flashcart_core {
 using ntrcard::sendCommand;
 using platform::logMessage;
 using platform::showProgress;
@@ -181,3 +182,4 @@ const uint8_t R4i_Gold_3DS::cmdWriteByteFlash[8] = {0xDA, 0x00, 0x00, 0x00, 0x00
 const uint8_t R4i_Gold_3DS::cmdWaitFlashBusy[8] = {0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 R4i_Gold_3DS r4i_gold_3ds;
+}

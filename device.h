@@ -16,7 +16,7 @@ using std::uint32_t;
 #define PAGE_ROUND_DOWN(x, s) ( (x) & (~((s)-1)) )
 
 #define BIT(n) (1 << (n))
-
+namespace flashcart_core {
 class Flashcart {
 public:
     Flashcart(const char* name, const size_t max_length);
@@ -39,3 +39,4 @@ protected:
 };
 
 extern std::vector<Flashcart*> *flashcart_list;
+}
