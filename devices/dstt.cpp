@@ -97,6 +97,11 @@ Known flashchips that are "unsupported":
 #include <stdlib.h>
 #include <cstring>
 
+namespace flashcart_core {
+using ntrcard::sendCommand;
+using platform::logMessage;
+using platform::showProgress;
+
 const uint16_t supported_flashchips[] = {
     0x041F, 0x051F, 0x1A37, 0x3437, 0x49C2, 0x5BC2, 0x80BF, 0x9020, 0x9120, 0x9B37,
     0xA01F, 0xA31F, 0xA7C2, 0xA8C2, 0xBA01, 0xBA04, 0xBA1C, 0xBA4A, 0xBAC2, 0xB537,
@@ -429,3 +434,4 @@ public:
 };
 
 DSTT dstt;
+}

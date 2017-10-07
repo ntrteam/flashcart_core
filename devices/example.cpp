@@ -2,6 +2,11 @@
 
 #include "device.h"
 
+namespace flashcart_core {
+using ntrcard::sendCommand;
+using platform::logMessage;
+using platform::showProgress;
+
 class Example : Flashcart {
     public:
         // Name & Size of Flash Memory
@@ -29,5 +34,5 @@ class Example : Flashcart {
 
 // adds your cart to the list
 Example example;
-
+}
 #endif

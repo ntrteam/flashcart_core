@@ -4,6 +4,11 @@
 #include <stdlib.h>
 #include <cstring>
 
+namespace flashcart_core {
+using ntrcard::sendCommand;
+using platform::logMessage;
+using platform::showProgress;
+
 class AK2i : Flashcart {
 protected:
     static const uint8_t ak2i_cmdWaitFlashBusy[8];
@@ -99,7 +104,7 @@ public:
     const char *getAuthor() { return "Kitlith + Normmatt"; }
     const char *getDescription() { return "Works with the following carts:\n * Acekard 2i HW-44\n * Acekard 2i HW-81\n * R4i Ultra (r4ultra.com)"; }
 
-    const size_t getMaxLength()
+    size_t getMaxLength()
     {
         if (m_ak2i_hwrevision == 0x44444444) return 0x200000;
         if (m_ak2i_hwrevision == 0x81818181) return 0x1000000;
@@ -204,6 +209,8 @@ public:
         writeFlash(blowfish_adr, buf_size, buf);
 
         free(buf);
+
+        return true;
     }
 };
 
@@ -222,3 +229,4 @@ const uint8_t AK2i::ak2i_cmdEraseFlash81[8] = {0xD4, 0x00, 0x00, 0x00, 0x30, 0x8
 const uint8_t AK2i::ak2i_cmdWriteByteFlash81[8] = {0xD4, 0x00, 0x00, 0x00, 0x30, 0xa0, 0x00, 0x63};
 
 AK2i ak2i;
+}
