@@ -189,7 +189,7 @@ private:
 
     void Erase_Block(uint32_t offset, uint32_t length)
     {
-        logMessage(LOG_DEBUG, "DSTT: erase(0x%08x)", offset);
+        logMessage(LOG_DEBUG, "DSTT: erase_block(0x%08x)", offset);
         if (m_cmd_type == DSTT_CMD_TYPE_1) {
             dstt_flash_command(0x87, 0x5555, 0xAA);
             dstt_flash_command(0x87, 0x2AAA, 0x55);
@@ -199,26 +199,23 @@ private:
 
             dstt_flash_command(0x87, offset, 0x30);
         } else if (m_cmd_type == DSTT_CMD_TYPE_2) {
-            dstt_flash_command(0x87, offset, 0x50); // Clear Status Register
+            dstt_flash_command(0x87, 0x00,   0x50); // Clear Status Register
             dstt_flash_command(0x87, offset, 0x20); // Erase Setup
             dstt_flash_command(0x87, offset, 0xD0); // Erase Confirm
 
             // TODO: Timeout if something goes wrong.
             while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
 
-            dstt_flash_command(0x87, offset, 0x50); // Clear Status Register
-            // dstt_flash_command(0x87, offset, 0xFF); // Reset
+            dstt_flash_command(0x87, 0x00, 0x50); // Clear Status Register
+            dstt_flash_command(0x87, 0x00, 0xFF); // Reset
         }
 
-        dstt_reset();
         uint32_t end_offset = offset + length;
         for (; offset < end_offset; offset += 4)
         {
             // TODO: Timeout if something goes wrong.
             while (dstt_flash_command(0, offset, 0) != 0xFFFFFFFF);
         }
-
-        dstt_reset();
     }
 
     void Erase_Chip() {
@@ -292,8 +289,15 @@ private:
                 break;
         }
 
+        // calculate the max so we can show progress
+        uint32_t erase_endaddr = 0;
+        for (auto const& block_sz: erase_blocks) {
+            erase_endaddr += block_sz;
+        }
+
         uint32_t erase_addr = 0;
         for (auto const& block_sz: erase_blocks) {
+            showProgress(erase_addr, erase_endaddr, "Erasing Blocks");
             Erase_Block(erase_addr, block_sz);
             erase_addr += block_sz;
         }
@@ -302,16 +306,16 @@ private:
     // pretty messy function, but gets the job done
     void Program_Byte(uint32_t offset, uint8_t data)
     {
-        logMessage(LOG_DEBUG, "DSTT: write(0x%08x) = 0x%02x", offset, data);
+        logMessage(LOG_DEBUG, "DSTT: program_byte(0x%08x) = 0x%02x", offset, data);
         if (m_cmd_type == DSTT_CMD_TYPE_2) {
-            dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
+            dstt_flash_command(0x87, 0x00,   0x50); // Clear Status Register
             dstt_flash_command(0x87, offset, 0x40); // Word Write
             dstt_flash_command(0x87, offset, data);
 
             // TODO: Timeout if something goes wrong.
             while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
 
-            dstt_flash_command(0x87, offset, 0x50); // Clear Status Register (offset not required)
+            dstt_flash_command(0x87, 0x00, 0x50); // Clear Status Register
             //dstt_flash_command(0x87, offset, 0xFF); // Reset (offset not required)
         } else if (m_cmd_type == DSTT_CMD_TYPE_1) {
             dstt_flash_command(0x87, 0x5555, 0xAA);
@@ -322,8 +326,6 @@ private:
             // TODO: Timeout if something goes wrong.
             while ((uint8_t)dstt_flash_command(0, offset, 0) != data);
         }
-
-        dstt_reset();
     }
 
 public:
@@ -402,8 +404,8 @@ public:
 
         for(uint32_t i = 0; i < length; i++)
         {
-            Program_Byte(address++, buffer[i]);
             showProgress(i+1, length, "Writing");
+            Program_Byte(address++, buffer[i]);
         }
 
         return true;
