@@ -147,7 +147,7 @@ public:
         sendCommand(ak2i_cmdActiveFatMap, 4, garbage, 4);
     }
 
-    bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer)
+    int readFlash(uint32_t address, uint32_t length, uint8_t *buffer)
     {
         logMessage(LOG_INFO, "AK2i: readFlash(addr=0x%08x, size=0x%x)");
         sendCommand(ak2i_cmdLockFlash, 0, nullptr, 0);
@@ -155,15 +155,16 @@ public:
         if (m_ak2i_hwrevision == 0x81818181) sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr, 20);
         sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr, 0);
 
-        for (uint32_t curpos=0; curpos < length; curpos+=0x200) {
-            a2ki_read(buffer + curpos, address + curpos);
+        uint32_t curpos = 0;
+        for (; curpos < length; curpos += 0x200) {
             showProgress(curpos+1,length, "Reading");
+            a2ki_read(buffer + curpos, address + curpos);
         }
 
-        return true;
+        return curpos;
     }
 
-    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
+    int writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
     {
         logMessage(LOG_INFO, "AK2i: writeFlash(addr=0x%08x, size=0x%x)");
         sendCommand(ak2i_cmdUnlockFlash, 0, nullptr, 0);
@@ -172,17 +173,18 @@ public:
         if (m_ak2i_hwrevision == 0x81818181) sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr, 20);
         sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr, 0);
 
-        for (uint32_t addr=0; addr < length; addr+=page_size)
+        uint32_t writenum = 0;
+        for (uint32_t erasenum = 0; erasenum < length; erasenum += page_size)
         {
-            a2ki_erase(address + addr);
+            a2ki_erase(address + erasenum);
 
-            for (uint32_t i=0; i < page_size; i++) {
-                a2ki_writebyte(address + addr + i, buffer[addr + i]);
-                showProgress(addr+i+1,length, "Writing");
+            for (writenum = erasenum; writenum < erasenum + page_size; ++writenum) {
+                showProgress(writenum + 1, length, "Writing");
+                a2ki_writebyte(address + writenum, buffer[writenum]);
             }
         }
 
-        return true;
+        return writenum;
     }
 
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size)

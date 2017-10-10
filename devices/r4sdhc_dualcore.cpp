@@ -89,22 +89,25 @@ public:
     }
 
     // We don't have a read command...
-    bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
+    int readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
         logMessage(LOG_ERR, "R4SDHC: readFlash not implemented!");
-        return false;
+        return -1;
     }
 
-    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {
+    int writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {
         logMessage(LOG_INFO, "R4SDHC: writeFlash(addr=0x%08x, size=0x%x)", address, length);
-        for (uint32_t addr=0; addr < length; addr+=0x10000)
-            erase_cmd(address + addr);
-
-        for (uint32_t i=0; i < length; i++) {
-            write_cmd(address + i, buffer[i]);
-            showProgress(i,length, "Writing");
+        for (uint32_t erasenum = 0; erasenum < length; erasenum += 0x10000) {
+            showProgress(erasenum, length, "Erasing");
+            erase_cmd(address + erasenum);
         }
 
-        return true;
+        uint32_t writenum = 0;
+        for (; writenum < length; ++writenum) {
+            showProgress(writenum, length, "Writing");
+            write_cmd(address + writenum, buffer[writenum]);
+        }
+
+        return writenum;
     }
 
     // Need to find offsets first.

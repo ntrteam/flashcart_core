@@ -124,29 +124,31 @@ public:
         logMessage(LOG_INFO, "R4iGold: Shutdown");
     }
 
-    bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer)
+    int readFlash(uint32_t address, uint32_t length, uint8_t *buffer)
     {
         logMessage(LOG_INFO, "R4iGold: readFlash(addr=0x%08x, size=0x%x)", address, length);
-        for (uint32_t curpos=0; curpos < length; curpos+=0x200) {
-            r4i_read(buffer + curpos, address + curpos);
-            showProgress(curpos+1,length, "Reading");
+        uint32_t readnum = 0;
+        for (; readnum < length; readnum += 0x200) {
+            showProgress(readnum + 1, length, "Reading");
+            r4i_read(buffer + readnum, address + readnum);
         }
 
-        return true;
+        return readnum;
     }
 
-    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
+    int writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
     {
         logMessage(LOG_INFO, "R4iGold: writeFlash(addr=0x%08x, size=0x%x)", address, length);
         for (uint32_t addr=0; addr < length; addr+=0x10000)
             r4i_erase(address + addr);
 
-        for (uint32_t i=0; i < length; i++) {
-            r4i_writebyte(address + i, buffer[i]);
-            showProgress(i+1,length, "Writing");
+        uint32_t writenum = 0;
+        for (; writenum < length; ++writenum) {
+            showProgress(writenum + 1, length, "Writing");
+            r4i_writebyte(address + writenum, buffer[writenum]);
         }
 
-        return true;
+        return writenum;
     }
 
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size)

@@ -102,7 +102,7 @@ using ntrcard::sendCommand;
 using platform::logMessage;
 using platform::showProgress;
 
-const uint16_t supported_flashchips[] = {
+static const uint16_t supported_flashchips[] = {
     0x041F, 0x051F, 0x1A37, 0x3437, 0x49C2, 0x5BC2, 0x80BF, 0x9020, 0x9120, 0x9B37,
     0xA01F, 0xA31F, 0xA7C2, 0xA8C2, 0xBA01, 0xBA04, 0xBA1C, 0xBA4A, 0xBAC2, 0xB537,
     0xB91C, 0xC11F, 0xC298, 0xC31F, 0xC420, 0xC4C2, 0xEE20, 0xEF20,
@@ -111,6 +111,8 @@ const uint16_t supported_flashchips[] = {
     0x49B0, 0x9089, 0x912C, 0x9189, 0x922C, 0x9289, 0x9320, 0x9389, 0x9489, 0x9589,
     0x9689, 0x9789
 };
+
+static const int timeout_value = 1024; // what's a good value for this?
 
 // Header: TOP TF/SD DSTTDS
 // Device ID: 0xFC2
@@ -187,7 +189,7 @@ private:
         return false;
     }
 
-    void Erase_Block(uint32_t offset, uint32_t length)
+    bool Erase_Block(uint32_t offset, uint32_t length)
     {
         logMessage(LOG_DEBUG, "DSTT: erase_block(0x%08x)", offset);
         if (m_cmd_type == DSTT_CMD_TYPE_1) {
@@ -203,8 +205,22 @@ private:
             dstt_flash_command(0x87, offset, 0x20); // Erase Setup
             dstt_flash_command(0x87, offset, 0xD0); // Erase Confirm
 
-            // TODO: Timeout if something goes wrong.
-            while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
+            for (int timeout = timeout_value;; --timeout) {
+                uint8_t status = dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0xFF;
+                if (timeout < 0) {
+                    logMessage(LOG_ERR, "Erase timeout!");
+                    dstt_flash_command(0x87, 0x00, 0x50); // Clear Status Register
+                    dstt_reset();
+                    return false;
+                }
+                if (status & 0b00101010) { // ESS, VPPS, or BLS
+                    logMessage(LOG_ERR, "Erase error! Status: 0x%02x", status);
+                    dstt_flash_command(0x87, 0x00, 0x50); // Clear Status Register
+                    dstt_reset();
+                    return false;
+                }
+                if (status & 0b10000000) break; // WSMS
+            }
 
             dstt_flash_command(0x87, 0x00, 0x50); // Clear Status Register
             dstt_flash_command(0x87, 0x00, 0xFF); // Reset
@@ -213,12 +229,18 @@ private:
         uint32_t end_offset = offset + length;
         for (; offset < end_offset; offset += 4)
         {
-            // TODO: Timeout if something goes wrong.
-            while (dstt_flash_command(0, offset, 0) != 0xFFFFFFFF);
+            for (int timeout = timeout_value;; --timeout) {
+                if (timeout < 0) {
+                    logMessage(LOG_ERR, "Erase Verify Failed!");
+                    return false; // Not sure what to do here.
+                }
+                if (dstt_flash_command(0, offset, 0) == 0xFFFFFFFF)
+                    return true;
+            }
         }
     }
 
-    void Erase_Chip() {
+    bool Erase_Chip() {
         std::vector<uint32_t> erase_blocks;
         logMessage(LOG_INFO, "DSTT: Erasing Flash");
 
@@ -297,14 +319,17 @@ private:
 
         uint32_t erase_addr = 0;
         for (auto const& block_sz: erase_blocks) {
-            showProgress(erase_addr, erase_endaddr, "Erasing Blocks");
-            Erase_Block(erase_addr, block_sz);
+            showProgress(erase_addr, erase_endaddr, "Erasing");
+            if (Erase_Block(erase_addr, block_sz) == false)
+                break; // Fail if any erasures fail.
             erase_addr += block_sz;
         }
+
+        return erase_addr;
     }
 
     // pretty messy function, but gets the job done
-    void Program_Byte(uint32_t offset, uint8_t data)
+    bool Program_Byte(uint32_t offset, uint8_t data)
     {
         logMessage(LOG_DEBUG, "DSTT: program_byte(0x%08x) = 0x%02x", offset, data);
         if (m_cmd_type == DSTT_CMD_TYPE_2) {
@@ -312,20 +337,42 @@ private:
             dstt_flash_command(0x87, offset, 0x40); // Word Write
             dstt_flash_command(0x87, offset, data);
 
-            // TODO: Timeout if something goes wrong.
-            while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
-
+            for (int timeout = timeout_value;; --timeout) {
+                uint8_t status = dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0xFF;
+                if (timeout < 0) {
+                    logMessage(LOG_ERR, "Write timeout!");
+                    dstt_flash_command(0x87, 0x00, 0x50); // Clear Status Register
+                    dstt_reset();
+                    return false;
+                }
+                if (status & 0b00011010) { // WWS, VPPS, or BLS
+                    logMessage(LOG_ERR, "Write error! Status: 0x%02x", status);
+                    dstt_flash_command(0x87, 0x00, 0x50); // Clear Status Register
+                    dstt_reset();
+                    return false;
+                }
+                if (status & 0b10000000) break; // WSMS
+            }
             dstt_flash_command(0x87, 0x00, 0x50); // Clear Status Register
-            //dstt_flash_command(0x87, offset, 0xFF); // Reset (offset not required)
+
         } else if (m_cmd_type == DSTT_CMD_TYPE_1) {
             dstt_flash_command(0x87, 0x5555, 0xAA);
             dstt_flash_command(0x87, 0x2AAA, 0x55);
             dstt_flash_command(0x87, 0x5555, 0xA0);
             dstt_flash_command(0x87, offset, data);
 
-            // TODO: Timeout if something goes wrong.
-            while ((uint8_t)dstt_flash_command(0, offset, 0) != data);
+            for (int timeout = timeout_value;; --timeout) {
+                if (timeout < 0) {
+                    logMessage(LOG_ERR, "Write timeout!");
+                    dstt_reset();
+                    return false;
+                }
+                if ((uint8_t)dstt_flash_command(0, offset, 0) == data)
+                    break;
+            }
         }
+
+        return true;
     }
 
 public:
@@ -371,44 +418,45 @@ public:
         dstt_flash_command(0x88, 0, 0);
     }
 
-    bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
+    int readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
         logMessage(LOG_INFO, "DSTT: readFlash(addr=0x%08x, size=0x%x)", address, length);
         dstt_reset();
 
-        uint32_t i = 0;
         uint32_t end_address = address + length;
 
+        uint32_t readnum = 0;
         while (address < end_address)
         {
-            uint32_t data = dstt_flash_command(0, address, 0);
-            showProgress(address+1, end_address, "Reading");
+            showProgress(readnum + 1, length, "Reading");
+            uint32_t data = dstt_flash_command(0, address + readnum, 0);
 
-            buffer[i++] = (uint8_t)((data >> 0) & 0xFF);
-            buffer[i++] = (uint8_t)((data >> 8) & 0xFF);
-            buffer[i++] = (uint8_t)((data >> 16) & 0xFF);
-            buffer[i++] = (uint8_t)((data >> 24) & 0xFF);
-
-            address += 4;
+            buffer[readnum++] = (uint8_t)((data >> 0) & 0xFF);
+            buffer[readnum++] = (uint8_t)((data >> 8) & 0xFF);
+            buffer[readnum++] = (uint8_t)((data >> 16) & 0xFF);
+            buffer[readnum++] = (uint8_t)((data >> 24) & 0xFF);
         }
 
-        return true;
+        return readnum;
     }
 
     // todo: we're just assuming this is block (0x2000) aligned
-    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
+    int writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
     {
         // really fucking temporary, writeFlash can only do full length writes
         // todo: read and erase properly
-        Erase_Chip();
+
+        if (Erase_Chip() == false) return -1;
         logMessage(LOG_INFO, "DSTT: writeFlash(addr=0x%08x, size=0x%x)", address, length);
 
-        for(uint32_t i = 0; i < length; i++)
+        uint32_t writenum = 0;
+        for(; writenum < length; ++writenum)
         {
-            showProgress(i+1, length, "Writing");
-            Program_Byte(address++, buffer[i]);
+            showProgress(writenum + 1, length, "Writing");
+            if (Program_Byte(address + writenum, buffer[writenum]) == false)
+                break;
         }
 
-        return true;
+        return writenum;
     }
 
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) {
@@ -429,7 +477,7 @@ public:
         memcpy(buffer + 0x2000, blowfish_key + 0x48, 0x1000);
         memcpy(buffer + 0x7E00, firm, firm_size);
 
-        writeFlash(0, m_max_length, buffer);
+        if (writeFlash(0, m_max_length, buffer) != (int)m_max_length) return false;
 
         return true;
     }
