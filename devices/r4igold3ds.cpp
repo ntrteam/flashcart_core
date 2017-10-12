@@ -196,7 +196,9 @@ public:
                " * R4i Gold 3DS (rev 4/5) (r4ids.cn)\n"
                " * R4i Gold 3DS Starter (r4ids.cn)\n"
                " * R4 3D Revolution (r4idsn.com)\n"
-               " * Infinity 3 R4i (r4infinity.com)";
+               " * Infinity 3 R4i (r4infinity.com)\n"
+               "This will not work with a R4i Gold 3DS (r4ids.cn)\n"
+               "rev 6/7 though it will be detected as rev 4/5!";
     }
 
     size_t getMaxLength()
