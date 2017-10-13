@@ -147,13 +147,13 @@ namespace {
     }
 }
 
-class R4iSDHCRTSL : Flashcart {
+class R4iSDHC : Flashcart {
 public:
     // Name & Size of Flash Memory
-    R4iSDHCRTSL() : Flashcart("R4iSDHC RTS Lite", 0x200000) { }
+    R4iSDHC() : Flashcart("R4iSDHC family", 0x200000) { }
 
-    const char* getAuthor() { return "angelsl"; }
-    const char* getDescription() { return "From r4isdhc.com"; }
+    const char* getAuthor() { return ""; }
+    const char* getDescription() { return ""; }
 
     bool initialize() {
         sendCommand(0x68, 4, nullptr, 0x180000);
@@ -175,5 +175,5 @@ public:
     }
 };
 
-R4iSDHCRTSL r4isdhcrtsl;
+R4iSDHC r4isdhcrtsl;
 }
