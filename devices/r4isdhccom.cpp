@@ -75,7 +75,7 @@ namespace {
             }
         }
 
-        return norRead(0) == 0x33313032;
+        return true;
     }
 
     bool writeNor(const uint32_t dest_address, const uint32_t length, const uint8_t *const src, bool progress = false) {
@@ -87,7 +87,12 @@ namespace {
 
         while (cur < real_length) {
             const uint32_t cur_addr = real_start + cur;
-            if (!readNor(cur_addr, 0x1000, buf)) {
+            const uint32_t buf_ofs = ((dest_address > cur_addr) ? (dest_address - cur_addr) : 0);
+            const uint32_t src_ofs = ((cur > first_page_offset) ? (cur - first_page_offset) : 0);
+            const uint32_t len = std::min<uint32_t>(0x1000 - buf_ofs, std::min<uint32_t>(length - src_ofs, 0x1000));
+
+            // no need to read the NOR if we're overwriting the whole page
+            if ((len < 0x1000 || buf_ofs != 0) && !readNor(cur_addr, 0x1000, buf)) {
                 logMessage(LOG_ERR, "writeNor: failed to read");
                 return false;
             }
@@ -97,19 +102,25 @@ namespace {
             // while the NOR does the sector erase, then just wait on it at the end. BUT NOPE!
             // (and the datasheet doesn't say this chip can read while writing, so that's not an option)
 
-            // some sanity checks..
-            if (norRead(cur_addr) != 0xFFFFFFFF) {
-                logMessage(LOG_ERR, "writeNor: start isn't FF");
-                return false;
-            }
-            if (norRead(cur_addr + 0x1000 - 4) != 0xFFFFFFFF) {
-                logMessage(LOG_ERR, "writeNor: end isn't FF");
-                return false;
+            bool success = false;
+            uint32_t retry = 0;
+            while (retry < 10) {
+                // some sanity checks..
+                success = norRead(cur_addr) == 0xFFFFFFFF &&
+                    norRead(cur_addr + 0x1000 - 4) != 0xFFFFFFFF;
+                if (success) {
+                    break;
+                }
+
+                ++retry;
+                logMessage(LOG_WARN, "writeNor: start or end isn't FF");
+                ioDelay(41000000);
             }
 
-            const uint32_t buf_ofs = ((dest_address > cur_addr) ? (dest_address - cur_addr) : 0);
-            const uint32_t src_ofs = ((cur > first_page_offset) ? (cur - first_page_offset) : 0);
-            const uint32_t len = std::min<uint32_t>(0x1000 - buf_ofs, std::min<uint32_t>(length - src_ofs, 0x1000));
+            if (!success) {
+                logMessage(LOG_WARN, "writeNor: start or end isn't FF after 10 waits, continuing");
+            }
+
             std::memcpy(buf + buf_ofs, src + src_ofs, len);
 
             norWrite4k(cur_addr, buf);
@@ -146,7 +157,7 @@ public:
 
     bool initialize() {
         sendCommand(0x68, 4, nullptr, 0x180000);
-        return norRead(0) == 0x33313032;
+        return true;
     }
 
     void shutdown() { }
