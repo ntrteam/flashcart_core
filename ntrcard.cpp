@@ -188,7 +188,7 @@ bool init() {
 
 bool initKey1() {
     if (!platform::HAS_HW_KEY2) {
-        platform::logMessage(LOG_DEBUG, "Key1 fail due to no Key2 support");
+        platform::logMessage(LOG_ERR, "Key1 fail due to no Key2 support");
         return false; // TODO impl SW KEY2
     }
 
@@ -214,7 +214,7 @@ bool initKey1() {
 
     key1_cmd(CMD_KEY1_CHIPID, 4, reinterpret_cast<uint8_t *>(&state.key1_chipid));
     if (state.key1_chipid != state.chipid) {
-        platform::logMessage(LOG_DEBUG, "Key1 fail: mismatching chipid: (raw) %X != (key1) %X", state.chipid, state.key1_chipid);
+        platform::logMessage(LOG_ERR, "Key1 fail: mismatching chipid: (raw) %X != (key1) %X", state.chipid, state.key1_chipid);
         return false;
     }
     return true;
@@ -222,7 +222,7 @@ bool initKey1() {
 
 bool initKey2() {
     if (!platform::HAS_HW_KEY2) {
-        platform::logMessage(LOG_DEBUG, "Key2 fail due to no Key2 support");
+        platform::logMessage(LOG_ERR, "Key2 fail due to no Key2 support");
         return false; // TODO impl SW KEY2
     }
 
@@ -233,7 +233,7 @@ bool initKey2() {
 
     ntrcard::sendCommand(CMD_KEY2_CHIPID, 4, reinterpret_cast<uint8_t *>(&state.key2_chipid), state.key2_romcnt);
     if (state.key2_chipid != state.chipid) {
-        platform::logMessage(LOG_DEBUG, "Key2 fail: mismatching chipid: (raw) %X != (key2) %X", state.chipid, state.key2_chipid);
+        platform::logMessage(LOG_ERR, "Key2 fail: mismatching chipid: (raw) %X != (key2) %X", state.chipid, state.key2_chipid);
         return false;
     }
     return true;
