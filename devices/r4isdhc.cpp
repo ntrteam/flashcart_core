@@ -36,7 +36,7 @@ namespace {
 
     void norWriteEnable() {
         sendCommand(norCmd(0, 1, 6, 0), 4, nullptr, 0x180000);
-        ioDelay(4100);
+        ioDelay(0x60000);
     }
 
     void norErase4k(const uint32_t address) {
@@ -107,18 +107,22 @@ namespace {
             while (retry < 10) {
                 // some sanity checks..
                 success = norRead(cur_addr) == 0xFFFFFFFF &&
-                    norRead(cur_addr + 0x1000 - 4) != 0xFFFFFFFF;
+                    norRead(cur_addr + 0x1000 - 4) == 0xFFFFFFFF;
                 if (success) {
                     break;
                 }
 
+                showProgress(cur, real_length, "Waiting for NOR erase to finish");
                 ++retry;
                 logMessage(LOG_WARN, "writeNor: start or end isn't FF");
                 ioDelay(41000000);
             }
 
             if (!success) {
-                logMessage(LOG_WARN, "writeNor: start or end isn't FF after 10 waits, continuing");
+                if (progress) {
+                    showProgress(0, 1, "NOR erase sanity check failed");
+                }
+                return false;
             }
 
             std::memcpy(buf + buf_ofs, src + src_ofs, len);
@@ -132,6 +136,9 @@ namespace {
 
         uint32_t t = norRead(dest_address);
         if (std::memcmp(&t, src, std::min<uint32_t>(length, 4))) {
+            if (progress) {
+                showProgress(0, 1, "NOR write start verification failed");
+            }
             logMessage(LOG_ERR, "writeNor: start mismatch after write");
             return false;
         }
@@ -139,6 +146,9 @@ namespace {
         if (length > 4) {
             t = norRead(dest_address + length - 4);
             if (std::memcmp(&t, src + length - 4, 4)) {
+                if (progress) {
+                    showProgress(0, 1, "NOR write end verification failed");
+                }
                 logMessage(LOG_ERR, "writeNor: end mismatch after write");
                 return false;
             }
