@@ -85,49 +85,56 @@ namespace {
         uint32_t cur = 0;
         uint8_t buf[0x1000];
 
+        if (progress) {
+                showProgress(cur, real_length, "Writing NOR");
+        }
+
         while (cur < real_length) {
             const uint32_t cur_addr = real_start + cur;
             const uint32_t buf_ofs = ((dest_address > cur_addr) ? (dest_address - cur_addr) : 0);
             const uint32_t src_ofs = ((cur > first_page_offset) ? (cur - first_page_offset) : 0);
             const uint32_t len = std::min<uint32_t>(0x1000 - buf_ofs, std::min<uint32_t>(length - src_ofs, 0x1000));
 
-            // no need to read the NOR if we're overwriting the whole page
-            if ((len < 0x1000 || buf_ofs != 0) && !readNor(cur_addr, 0x1000, buf)) {
+            if (!readNor(cur_addr, 0x1000, buf)) {
                 logMessage(LOG_ERR, "writeNor: failed to read");
                 return false;
             }
 
-            norErase4k(cur_addr);
-            // now ideally if i could read the NOR status register, i'd do the memcpy here
-            // while the NOR does the sector erase, then just wait on it at the end. BUT NOPE!
-            // (and the datasheet doesn't say this chip can read while writing, so that's not an option)
+            // don't write if they're already identical
+            if (std::memcmp(buf + buf_ofs, src + src_ofs, len)) {
+                norErase4k(cur_addr);
+                // now ideally if i could read the NOR status register, i'd do the memcpy here
+                // while the NOR does the sector erase, then just wait on it at the end. BUT NOPE!
+                // (and the datasheet doesn't say this chip can read while writing, so that's not an option)
 
-            bool success = false;
-            uint32_t retry = 0;
-            while (retry < 10) {
-                // some sanity checks..
-                success = norRead(cur_addr) == 0xFFFFFFFF &&
-                    norRead(cur_addr + 0x1000 - 4) == 0xFFFFFFFF;
-                if (success) {
-                    break;
+                bool success = false;
+                uint32_t retry = 0;
+                while (retry < 10) {
+                    // some sanity checks..
+                    success = norRead(cur_addr) == 0xFFFFFFFF &&
+                        norRead(cur_addr + 0x1000 - 4) == 0xFFFFFFFF;
+                    if (success) {
+                        break;
+                    }
+
+                    showProgress(cur, real_length, "Waiting for NOR erase to finish");
+                    ++retry;
+                    logMessage(LOG_WARN, "writeNor: start or end isn't FF");
+                    ioDelay(41000000);
                 }
 
-                showProgress(cur, real_length, "Waiting for NOR erase to finish");
-                ++retry;
-                logMessage(LOG_WARN, "writeNor: start or end isn't FF");
-                ioDelay(41000000);
-            }
-
-            if (!success) {
-                if (progress) {
-                    showProgress(0, 1, "NOR erase sanity check failed");
+                if (!success) {
+                    if (progress) {
+                        showProgress(0, 1, "NOR erase sanity check failed");
+                    }
+                    return false;
                 }
-                return false;
+
+                std::memcpy(buf + buf_ofs, src + src_ofs, len);
+
+                norWrite4k(cur_addr, buf);
             }
 
-            std::memcpy(buf + buf_ofs, src + src_ofs, len);
-
-            norWrite4k(cur_addr, buf);
             cur += 0x1000;
             if (progress) {
                 showProgress(cur, real_length, "Writing NOR");
