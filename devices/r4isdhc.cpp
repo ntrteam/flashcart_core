@@ -169,8 +169,20 @@ public:
     // Name & Size of Flash Memory
     R4iSDHC() : Flashcart("R4iSDHC family", 0x200000) { }
 
-    const char* getAuthor() { return ""; }
-    const char* getDescription() { return ""; }
+    const char* getAuthor() {
+        return
+                    "handsomematt, Rai-chan, Kitlith,\n"
+            "        stuckpixel, angelsl, et al.";
+    }
+
+    const char* getDescription() {
+        return
+            "\n"
+            "A family of DSTT clones. Tested with:\n"
+            " * R4iSDHC RTS Lite (r4isdhc.com)\n"
+            " * R4i-SDHC 3DS RTS (r4i-sdhc.com)\n"
+            " * R4i-SDHC B9S (r4i-sdhc.com)";
+    }
 
     bool initialize() {
         uint32_t buf;
