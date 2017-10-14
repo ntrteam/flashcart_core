@@ -188,9 +188,24 @@ public:
     }
 
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) override {
-        return false;
+        if (firm_size > 0x1F1000 - 0x7E00) { // FIRM is written at 0x7E00; blowfish key at 0x1F1000
+            showProgress(0, 1, "FIRM too big (max 2003456 bytes)");
+            return false;
+        }
+
+        uint8_t map[0x100] = {0};
+        // set the 2nd ROM map to some high value (0x7FFFFFFF in big-endian)
+        map[4] = 0x7F; map[5] = 0xFF; map[6] = 0xFF; map[7] = 0xFF;
+        return
+            writeNor(0x40, 0x100, reinterpret_cast<uint8_t *>(map), true) && // 1:1 map the ROM <=> NOR
+            writeNor(0x1000, 0x48, blowfish_key, true) && // blowfish P array
+            writeNor(0x1F1000, 0x48, blowfish_key, true) &&
+            writeNor(0x2000, 0x1000, blowfish_key+0x48, true) && // blowfish S boxes
+            writeNor(0x1F2000, 0x1000, blowfish_key+0x48, true) &&
+            writeNor(0x7E00, firm_size, firm, true) && // FIRM
+            writeNor(0x1F7E00, firm_size < 0x200 ? firm_size : 0x200, firm, true); // FIRM header
     }
 };
 
-R4iSDHC r4isdhcrtsl;
+R4iSDHC r4isdhc;
 }
