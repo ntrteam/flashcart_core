@@ -173,8 +173,18 @@ public:
     const char* getDescription() { return ""; }
 
     bool initialize() {
+        uint32_t buf;
+        // this is actually the NOR write disable command
+        // the r4isdhc will respond to cart commands with 0xFFFFFFFF if
+        // the "magic" command hasn't been sent, so we check for that
+        sendCommand(0x40199, 4, reinterpret_cast<uint8_t *>(&buf), 0x180000);
+        if (buf != 0xFFFFFFFF) {
+            return false;
+        }
         sendCommand(0x68, 4, nullptr, 0x180000);
-        return true;
+        // now it will return zeroes
+        sendCommand(0x40199, 4, reinterpret_cast<uint8_t *>(&buf), 0x180000);
+        return buf == 0;
     }
 
     void shutdown() { }
