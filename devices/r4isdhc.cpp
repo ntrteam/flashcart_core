@@ -5,11 +5,18 @@
 
 namespace flashcart_core {
 using ntrcard::sendCommand;
+using ntrcard::BlowfishKey;
 using platform::logMessage;
 using platform::ioDelay;
 using platform::showProgress;
 
 namespace {
+    union CmdBuf4 {
+            uint32_t u32;
+            uint8_t u8[4];
+    };
+    static_assert(sizeof(CmdBuf4) == 4, "Wrong union size");
+
     constexpr uint64_t norCmd(const uint8_t outlen, const uint8_t inlen, const uint8_t cmd, const uint32_t addr, const uint8_t d1 = 0, const uint8_t d2 = 0) {
         // DD DD AA AA AA CC XY 99
         return 0x99ull | ((outlen & 0xFull) << 12) | ((inlen & 0xFull) << 8) |
@@ -28,10 +35,10 @@ namespace {
     static_assert(norRaw(0x34, 0x56, 0x12) == 0x56341299, "norRaw result is wrong");
 
     uint32_t norRead(const uint32_t address) {
-        uint32_t ret = 0;
-        sendCommand(norCmd(2, 5, 0x3B, address), 4, reinterpret_cast<uint8_t *>(&ret), 0x180000);
-        logMessage(LOG_DEBUG, "R4ISDHC: NOR read at %X returned %X", address, ret);
-        return ret;
+        CmdBuf4 buf;
+        sendCommand(norCmd(2, 5, 0x3B, address), 4, buf.u8, 0x180000);
+        logMessage(LOG_DEBUG, "R4ISDHC: NOR read at %X returned %X", address, buf.u32);
+        return buf.u32;
     }
 
     void norWriteEnable() {
@@ -78,7 +85,8 @@ namespace {
         return true;
     }
 
-    bool writeNor(const uint32_t dest_address, const uint32_t length, const uint8_t *const src, bool progress = false) {
+    bool writeNor(const uint32_t dest_address, const uint32_t length, const uint8_t *const src, bool progress = false,
+                    const char *const progress_str = "Writing NOR") {
         const uint32_t real_start = dest_address & ~0xFFF;
         const uint32_t first_page_offset = dest_address & 0xFFF;
         const uint32_t real_length = ((length + first_page_offset) + 0xFFF) & ~0xFFF;
@@ -86,7 +94,7 @@ namespace {
         uint8_t buf[0x1000];
 
         if (progress) {
-                showProgress(cur, real_length, "Writing NOR");
+                showProgress(cur, real_length, progress_str);
         }
 
         while (cur < real_length) {
@@ -137,7 +145,7 @@ namespace {
 
             cur += 0x1000;
             if (progress) {
-                showProgress(cur, real_length, "Writing NOR");
+                showProgress(cur, real_length, progress_str);
             }
         }
 
@@ -162,12 +170,36 @@ namespace {
         }
         return true;
     }
+
+    bool trySecureInit(BlowfishKey key) {
+        union {
+            uint32_t u32;
+            uint8_t bytes[4];
+        } buf;
+
+        ntrcard::init();
+        ntrcard::state.hdr_key1_romcnt = ntrcard::state.key1_romcnt = 0x81808F8;
+        ntrcard::state.hdr_key2_romcnt = ntrcard::state.key2_romcnt = 0x416657;
+        ntrcard::state.key2_seed = 0;
+        if (!ntrcard::initKey1(key)) {
+            logMessage(LOG_ERR, "r4isdhc: init key1 (key = %d) failed", static_cast<int>(key));
+            return false;
+        }
+        if (!ntrcard::initKey2()) {
+            logMessage(LOG_ERR, "r4isdhc: init key2 failed");
+            return false;
+        }
+        sendCommand(0x66, 4, nullptr, 0x586000);
+        sendCommand(0x40199, 4, buf.bytes, 0x180000);
+        return buf.u32 != 0xFFFFFFFF;
+    }
 }
 
 class R4iSDHC : Flashcart {
+    bool old_cart;
 public:
     // Name & Size of Flash Memory
-    R4iSDHC() : Flashcart("R4iSDHC family", 0x200000) { }
+    R4iSDHC() : Flashcart("R4iSDHC family", 0x200000), old_cart(false) { }
 
     const char* getAuthor() {
         return
@@ -185,18 +217,32 @@ public:
     }
 
     bool initialize() {
-        uint32_t buf;
+        CmdBuf4 buf;
         // this is actually the NOR write disable command
         // the r4isdhc will respond to cart commands with 0xFFFFFFFF if
         // the "magic" command hasn't been sent, so we check for that
-        sendCommand(0x40199, 4, reinterpret_cast<uint8_t *>(&buf), 0x180000);
-        if (buf != 0xFFFFFFFF) {
+        sendCommand(0x40199, 4, buf.u8, 0x180000);
+        if (buf.u32 != 0xFFFFFFFF) {
             return false;
         }
+
+        ntrcard::init();
         sendCommand(0x68, 4, nullptr, 0x180000);
         // now it will return zeroes
-        sendCommand(0x40199, 4, reinterpret_cast<uint8_t *>(&buf), 0x180000);
-        return buf == 0;
+        sendCommand(0x40199, 4, buf.u8, 0x180000);
+        if (buf.u32 == 0) {
+            return true;
+        }
+
+        // ok, we go the hard way
+        if (trySecureInit(BlowfishKey::NTR)
+            || trySecureInit(BlowfishKey::B9RETAIL)
+            || trySecureInit(BlowfishKey::B9DEV)) {
+            old_cart = true;
+            return true;
+        }
+
+        return false;
     }
 
     void shutdown() { }
@@ -210,7 +256,11 @@ public:
     }
 
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) override {
-        if (firm_size > 0x1F1000 - 0x7E00) { // FIRM is written at 0x7E00; blowfish key at 0x1F1000
+        // FIRM is written at 0x7E00; blowfish key at 0x1F1000
+        // N.B. this doesn't necessarily mean that the cart's ROM => NOR mapping will
+        // allow a FIRM of this size (i.e. old carts), it's just so we don't overwrite
+        // the blowfish key
+        if (firm_size > (0x1F1000 - 0x7E00)) {
             showProgress(0, 1, "FIRM too big (max 2003456 bytes)");
             return false;
         }
@@ -219,13 +269,17 @@ public:
         // set the 2nd ROM map to some high value (0x7FFFFFFF in big-endian)
         map[4] = 0x7F; map[5] = 0xFF; map[6] = 0xFF; map[7] = 0xFF;
         return
-            writeNor(0x40, 0x100, reinterpret_cast<uint8_t *>(map), true) && // 1:1 map the ROM <=> NOR
-            writeNor(0x1000, 0x48, blowfish_key, true) && // blowfish P array
-            writeNor(0x1F1000, 0x48, blowfish_key, true) &&
-            writeNor(0x2000, 0x1000, blowfish_key+0x48, true) && // blowfish S boxes
-            writeNor(0x1F2000, 0x1000, blowfish_key+0x48, true) &&
-            writeNor(0x7E00, firm_size, firm, true) && // FIRM
-            writeNor(0x1F7E00, firm_size < 0x200 ? firm_size : 0x200, firm, true); // FIRM header
+            // 1:1 map the ROM <=> NOR (unless it's an "old" cart - those don't seem to have
+            // a mapping in the NOR)
+            (old_cart || writeNor(0x40, 0x100, map, true, "Writing ROM <=> NOR map")) &&
+            writeNor(0x1000, 0x48, blowfish_key, true, "Writing Blowfish key (1)") && // blowfish P array
+            writeNor(0x1F1000, 0x48, blowfish_key, true, "Writing Blowfish key (2)") &&
+            writeNor(0x2000, 0x1000, blowfish_key+0x48, true, "Writing Blowfish key (3)") && // blowfish S boxes
+            writeNor(0x1F2000, 0x1000, blowfish_key+0x48, true, "Writing Blowfish key (4)") &&
+            writeNor(0x7E00, firm_size, firm, true, "Writing FIRM (1)") && // FIRM
+            // older carts read 0x8000-0x10000 from 0x1F8000-0x200000 instead of from 0x8000
+            writeNor(0x1F7E00, std::min<uint32_t>(firm_size, old_cart ? 0x8200 : 0x200), firm, true,
+                "Writing FIRM (2)"); // FIRM header
     }
 };
 
