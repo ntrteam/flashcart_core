@@ -64,6 +64,7 @@ public:
     bool slow_clock;
 
     static OpFlags parse(const std::uint32_t romcnt);
+    uint32_t pack();
 };
 
 extern State state;

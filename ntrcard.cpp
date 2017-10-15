@@ -164,6 +164,17 @@ OpFlags OpFlags::parse(const uint32_t romcnt) {
     return ret;
 }
 
+uint32_t OpFlags::pack() {
+    uint32_t ret = 0;
+    ret |= this->pre_delay;
+    ret |= this->post_delay;
+    ret |= ((this->large_secure_area_read ? 1 : 0) << 28);
+    ret |= ((this->key2_command ? 1 : 0) << 22);
+    ret |= ((this->key2_response ? 1 : 0) << 13);
+    ret |= ((this->slow_clock ? 1 : 0) << 27);
+    return ret;
+}
+
 bool sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, uint32_t flags) {
     platform::logMessage(LOG_DEBUG, "Sending cmd: %02X %02X %02X %02X %02X %02X %02X %02X ",
         cmdbuf[0], cmdbuf[1], cmdbuf[2], cmdbuf[3], cmdbuf[4], cmdbuf[5], cmdbuf[6], cmdbuf[7]);
