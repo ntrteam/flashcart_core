@@ -48,28 +48,47 @@ public:
     std::uint64_t key2_y;
 };
 
-struct OpFlags {
+class OpFlags {
+    /// The raw ROMCNT value.
+    std::uint32_t romcnt;
 public:
-    /// The delay before the response to a KEY1 command (KEY1 gap1)
-    std::uint16_t pre_delay;
-    /// The delay after the response to a KEY1 command (KEY1 gap2)
-    std::uint16_t post_delay;
-    /// True if the secure area can be read 0x1000 bytes at a time
-    bool large_secure_area_read;
-    /// True if the command is KEY2-encrypted
-    bool key2_command;
-    /// True if the command is KEY1-encrypted
-    bool key2_response;
-    /// True if the slower CLK rate should be used (usually for raw commands)
-    bool slow_clock;
+    constexpr bool bit(uint32_t bit) const { return !!(romcnt & (1 << bit)); }
+    constexpr OpFlags bit(uint32_t bit, bool set) { return (romcnt & ~(1 << bit)) | (set ? (1 << bit) : 0); }
 
-    static OpFlags parse(const std::uint32_t romcnt);
+    /// Returns the delay before the response to a KEY1 command (KEY1 gap1)
+    constexpr std::uint16_t pre_delay() const { return static_cast<uint16_t>(romcnt & 0x1FFF); }
+    /// Returns the delay after the response to a KEY1 command (KEY1 gap2)
+    constexpr std::uint16_t post_delay() const { return static_cast<uint16_t>((romcnt >> 16) & 0x3F); }
+    /// Returns true if the secure area can be read 0x1000 bytes at a time
+    constexpr bool large_secure_area_read() const { return bit(28); }
+    /// Returns true if the command is KEY2-encrypted
+    constexpr bool key2_command() const { return bit(22) && bit(14); }
+    /// Returns true if the command is KEY2-encrypted
+    constexpr bool key2_response() const { return bit(13) && bit(14); }
+    /// Returns true if the slower CLK rate should be used (usually for raw commands)
+    constexpr bool slow_clock() const { return bit(27); }
+
+    /// Sets the the delay before the response to a KEY1 command (KEY1 gap1)
+    constexpr OpFlags pre_delay(std::uint16_t value) { return (romcnt & ~0x1FFF) | (value & 0x1FFF); }
+    /// Sets the delay after the response to a KEY1 command (KEY1 gap2)
+    constexpr OpFlags post_delay(std::uint16_t value) { return (romcnt & ~(0x3F << 16)) | ((value & 0x3F) << 16); }
+    /// Set if the secure area can be read 0x1000 bytes at a time
+    constexpr OpFlags large_secure_area_read(bool value) { return bit(28, value); }
+    /// Set if the command is KEY2-encrypted
+    constexpr OpFlags key2_command(bool value) { return bit(22, value).bit(14, value || bit(13)); }
+    /// Set if the command is KEY2-encrypted
+    constexpr OpFlags key2_response(bool value) { return bit(13, value).bit(14, value || bit(22)); }
+    /// Set if the slower CLK rate should be used (usually for raw commands)
+    constexpr OpFlags slow_clock(bool value) { return bit(27, value); }
+
+    constexpr operator std::uint32_t() const { return romcnt; }
+    constexpr OpFlags(const std::uint32_t& from) : romcnt(from) {}
 };
 
 extern State state;
 
-bool sendCommand(const std::uint8_t *cmdbuf, std::uint16_t resplen, std::uint8_t *resp, std::uint32_t flags = 32);
-bool sendCommand(const std::uint64_t cmd, std::uint16_t resplen, std::uint8_t *resp, std::uint32_t flags = 32);
+bool sendCommand(const std::uint8_t *cmdbuf, std::uint16_t resplen, std::uint8_t *resp, OpFlags flags = OpFlags(32));
+bool sendCommand(const std::uint64_t cmd, std::uint16_t resplen, std::uint8_t *resp, OpFlags flags = OpFlags(32));
 bool init();
 bool initKey1();
 bool initKey2();

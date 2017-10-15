@@ -149,28 +149,28 @@ void seed_key2_registers(void) {
 }
 
 namespace ntrcard {
+static_assert(sizeof(OpFlags) == sizeof(std::uint32_t), "OpFlags is too big!");
+static_assert(OpFlags(0xA7586000).key2_command(), "OpFlags parsing wrong");
+static_assert(OpFlags(0xA7586000).key2_response(), "OpFlags parsing wrong");
+static_assert(!OpFlags(0xA7586000).slow_clock(), "OpFlags parsing wrong");
+static_assert(!OpFlags(0xA7586000).large_secure_area_read(), "OpFlags parsing wrong");
+static_assert(OpFlags(0xA7586123).pre_delay() == 0x123, "OpFlags parsing wrong");
+static_assert(OpFlags(0xA7586000).post_delay() == 0x18, "OpFlags parsing wrong");
+static_assert(OpFlags(0)
+                .key2_command(true).key2_response(true).slow_clock(true)
+                .large_secure_area_read(true)
+                .pre_delay(0x8F8).post_delay(0x18) == 0x185868F8,
+                "OpFlags construction wrong");
+
 State state;
 
-OpFlags OpFlags::parse(const uint32_t romcnt) {
-    OpFlags ret;
-
-    ret.pre_delay = static_cast<uint16_t>(romcnt & 0x1FFF);
-    ret.post_delay = static_cast<uint16_t>((romcnt >> 16) & 0x3F);
-    ret.large_secure_area_read = !!(romcnt & (1 << 28));
-    ret.key2_command = !!(romcnt & (1 << 22));
-    ret.key2_response = !!(romcnt & (1 << 13));
-    ret.slow_clock = !!(romcnt & (1 << 27));
-
-    return ret;
-}
-
-bool sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, uint32_t flags) {
+bool sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, OpFlags flags) {
     platform::logMessage(LOG_DEBUG, "Sending cmd: %02X %02X %02X %02X %02X %02X %02X %02X ",
         cmdbuf[0], cmdbuf[1], cmdbuf[2], cmdbuf[3], cmdbuf[4], cmdbuf[5], cmdbuf[6], cmdbuf[7]);
-    return platform::sendCommand(cmdbuf, response_len, resp, OpFlags::parse(flags));
+    return platform::sendCommand(cmdbuf, response_len, resp, flags);
 }
 
-bool sendCommand(const uint64_t cmd, uint16_t response_len, uint8_t *resp, uint32_t flags) {
+bool sendCommand(const uint64_t cmd, uint16_t response_len, uint8_t *resp, OpFlags flags) {
     return sendCommand(reinterpret_cast<const uint8_t *>(&cmd), response_len, resp, flags);
 }
 
