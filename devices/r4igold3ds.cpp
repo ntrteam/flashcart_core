@@ -12,25 +12,26 @@ using platform::showProgress;
 
 class R4i_Gold_3DS : Flashcart {
 private:
-    static uint8_t encrypt_type1(uint8_t dec)
+    uint8_t encrypt(uint8_t dec, uint32_t offset)
     {
         uint8_t enc = 0;
-        if (dec & BIT(0)) enc |= BIT(4);
-        if (dec & BIT(1)) enc |= BIT(3);
-        if (dec & BIT(2)) enc |= BIT(7);
-        if (dec & BIT(3)) enc |= BIT(6);
-        if (dec & BIT(4)) enc |= BIT(1);
-        if (dec & BIT(5)) enc |= BIT(0);
-        if (dec & BIT(6)) enc |= BIT(2);
-        if (dec & BIT(7)) enc |= BIT(5);
+        switch (m_r4i_type) {
+            case 1:
+                if (dec & BIT(0)) enc |= BIT(4);
+                if (dec & BIT(1)) enc |= BIT(3);
+                if (dec & BIT(2)) enc |= BIT(7);
+                if (dec & BIT(3)) enc |= BIT(6);
+                if (dec & BIT(4)) enc |= BIT(1);
+                if (dec & BIT(5)) enc |= BIT(0);
+                if (dec & BIT(6)) enc |= BIT(2);
+                if (dec & BIT(7)) enc |= BIT(5);
+                return enc;
+            case 2:
+                enc = (offset % 256) + 9;
+                return enc ^ dec;
+        }
+        // FIXME throw error
         return enc;
-    }
-
-    static uint8_t encrypt_type2(uint8_t dec, uint32_t offset)
-    {
-        uint8_t xorpad_byte;
-        xorpad_byte = (offset % 256) + 9;
-        return xorpad_byte ^ dec;
     }
 
     static uint8_t decrypt(uint8_t enc)
@@ -47,16 +48,10 @@ private:
          return dec;
     }
 
-    static void encrypt_memcpy_type1(uint8_t *dst, uint8_t *src, uint32_t length)
+    void encrypt_memcpy(uint8_t *dst, uint8_t *src, uint32_t length)
     {
         for(int i = 0; i < (int)length; ++i)
-            dst[i] = encrypt_type1(src[i]);
-    }
-
-    static void encrypt_memcpy_type2(uint8_t *dst, uint8_t *src, uint32_t length)
-    {
-        for(int i = 0; i < (int)length; ++i)
-            dst[i] = encrypt_type2(src[i], i);
+            dst[i] = encrypt(src[i], i);
     }
 
     void r4i_read(uint8_t *outbuf, uint32_t address) {
@@ -117,15 +112,15 @@ private:
         logMessage(LOG_INFO, "R4iGold: Injecting ntrboot");
         uint8_t *chunk0 = (uint8_t *)malloc(0x10000);
         readFlash(blowfish_adr, 0x10000, chunk0);
-        encrypt_memcpy_type1(chunk0, blowfish_key, 0x1048);
-        encrypt_memcpy_type1(chunk0 + firm_hdr_adr, firm, 0x200);
+        encrypt_memcpy(chunk0, blowfish_key, 0x1048);
+        encrypt_memcpy(chunk0 + firm_hdr_adr, firm, 0x200);
         writeFlash(blowfish_adr, 0x10000, chunk0);
         free(chunk0);
 
         uint32_t buf_size = PAGE_ROUND_UP(firm_size - 0x200, 0x10000);
         uint8_t *firm_chunk = (uint8_t *)malloc(buf_size);
         readFlash(firm_adr, buf_size, firm_chunk);
-        encrypt_memcpy_type1(firm_chunk, firm + 0x200, firm_size);
+        encrypt_memcpy(firm_chunk, firm + 0x200, firm_size);
         writeFlash(firm_adr, buf_size, firm_chunk);
 
         free(firm_chunk);
@@ -168,7 +163,7 @@ private:
         uint8_t *firm_chunk = (uint8_t *)malloc(buf_size);
         readFlash(firm_chunk_adr, buf_size, firm_chunk);
 
-        encrypt_memcpy_type2(firm_chunk + firm_adr, firm + 0x200, firm_size);
+        encrypt_memcpy(firm_chunk + firm_adr, firm + 0x200, firm_size);
 
         writeFlash(firm_chunk_adr, buf_size, firm_chunk);
 
