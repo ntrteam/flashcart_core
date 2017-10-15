@@ -7,6 +7,11 @@ namespace ntrcard {
 const uint32_t BLOWFISH_PS_N = 0x412;
 const uint32_t BLOWFISH_P_N = 0x12;
 
+enum class BlowfishKey {
+    // TODO impl TWL
+    NTR, B9RETAIL, B9DEV
+};
+
 struct State {
 public:
     /// The chip ID, stored in `ntrcard_init`
@@ -71,7 +76,7 @@ extern State state;
 bool sendCommand(const std::uint8_t *cmdbuf, std::uint16_t resplen, std::uint8_t *resp, std::uint32_t flags = 32);
 bool sendCommand(const std::uint64_t cmd, std::uint16_t resplen, std::uint8_t *resp, std::uint32_t flags = 32);
 bool init();
-bool initKey1();
+bool initKey1(BlowfishKey key = BlowfishKey::NTR);
 bool initKey2();
 }
 }

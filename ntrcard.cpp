@@ -36,6 +36,7 @@ using std::size_t;
 #define CMD_KEY2_CHIPID         0xB8ull
 
 namespace flashcart_core {
+using ntrcard::BlowfishKey;
 using ntrcard::BLOWFISH_PS_N;
 using ntrcard::BLOWFISH_P_N;
 using ntrcard::state;
@@ -94,15 +95,19 @@ void blowfish_apply_key(uint32_t (&ps)[BLOWFISH_PS_N], uint32_t key[3]) {
     }
 }
 
-void init_blowfish() {
-    state.key1_key[0] = state.game_code;
-    state.key1_key[1] = state.game_code >> 1;
-    state.key1_key[2] = state.game_code << 1;
+void init_blowfish(BlowfishKey key) {
+    if (key != BlowfishKey::NTR) {
+        platform::initBlowfishPS(state.key1_ps, key);
+    } else {
+        state.key1_key[0] = state.game_code;
+        state.key1_key[1] = state.game_code >> 1;
+        state.key1_key[2] = state.game_code << 1;
 
-    platform::initBlowfishPS(state.key1_ps);
+        platform::initBlowfishPS(state.key1_ps, BlowfishKey::NTR);
 
-    blowfish_apply_key(state.key1_ps, state.key1_key);
-    blowfish_apply_key(state.key1_ps, state.key1_key);
+        blowfish_apply_key(state.key1_ps, state.key1_key);
+        blowfish_apply_key(state.key1_ps, state.key1_key);
+    }
 }
 
 void read_header() {
@@ -186,7 +191,7 @@ bool init() {
     return true;
 }
 
-bool initKey1() {
+bool initKey1(BlowfishKey key) {
     if (!platform::HAS_HW_KEY2) {
         platform::logMessage(LOG_ERR, "Key1 fail due to no Key2 support");
         return false; // TODO impl SW KEY2
@@ -196,7 +201,7 @@ bool initKey1() {
     state.key1_ij = 0x11A473;
     state.key1_k = 0x39D46;
     state.key1_l = 0;
-    init_blowfish();
+    init_blowfish(key);
 
     // 00 KK KK 0K JJ IJ II 3C
     sendCommand(CMD_RAW_ACTIVATE_KEY1 |
