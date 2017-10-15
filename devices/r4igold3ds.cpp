@@ -178,6 +178,7 @@ protected:
     static const uint8_t cmdEraseFlash[8];
     static const uint8_t cmdWriteByteFlash[8];
     static const uint8_t cmdWaitFlashBusy[8];
+    static const uint8_t cmdUnknown[8];
 
     uint8_t m_r4i_type;
 
@@ -211,8 +212,11 @@ public:
     {
         logMessage(LOG_INFO, "R4iGold: Init");
         uint32_t hw_revision;
+        uint32_t hw_unknown;
         sendCommand(cmdGetHWRevision, 4, (uint8_t*)&hw_revision, 0);
+        sendCommand(cmdUnknown, 4, (uint8_t*)&hw_unknown, 0);
         logMessage(LOG_NOTICE, "R4iGold: HW Revision = %08x", hw_revision);
+        logMessage(LOG_NOTICE, "R4iGold: HW C7 value = %08x", hw_unknown);
 
         switch (hw_revision) {
             case 0xA5A5A5A5:
@@ -274,6 +278,7 @@ const uint8_t R4i_Gold_3DS::cmdReadFlash[8] = {0xA5, 0x00, 0x00, 0x00, 0x00, 0x5
 const uint8_t R4i_Gold_3DS::cmdEraseFlash[8] = {0xDA, 0x00, 0x00, 0x00, 0x00, 0xA5, 0x00, 0x00};
 const uint8_t R4i_Gold_3DS::cmdWriteByteFlash[8] = {0xDA, 0x00, 0x00, 0x00, 0x00, 0x5A, 0x00, 0x00};
 const uint8_t R4i_Gold_3DS::cmdWaitFlashBusy[8] = {0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t R4i_Gold_3DS::cmdUnknown[8] = {0xC7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 R4i_Gold_3DS r4i_gold_3ds;
 }
