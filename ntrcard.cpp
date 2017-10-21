@@ -172,6 +172,9 @@ State state;
 bool sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, OpFlags flags) {
     platform::logMessage(LOG_DEBUG, "Sending cmd: %02X %02X %02X %02X %02X %02X %02X %02X ",
         cmdbuf[0], cmdbuf[1], cmdbuf[2], cmdbuf[3], cmdbuf[4], cmdbuf[5], cmdbuf[6], cmdbuf[7]);
+    if (state.status == Status::KEY2) {
+        flags = flags.key2_command(true).key2_response(true);
+    }
     return platform::sendCommand(cmdbuf, response_len, resp, flags);
 }
 
@@ -180,7 +183,20 @@ bool sendCommand(const uint64_t cmd, uint16_t response_len, uint8_t *resp, OpFla
 }
 
 bool init() {
-    platform::resetCard();
+    if (platform::CAN_RESET) {
+        uint32_t reset_result = platform::resetCard();
+        if (reset_result) {
+            platform::logMessage(LOG_ERR, "platform::resetCard failed: %d", reset_result);
+            return false;
+        }
+        state.status = Status::RAW;
+    } else if (state.status > Status::RAW) {
+        platform::logMessage(LOG_ERR,
+            "Trying to re-init after encryption is on on !CAN_RESET platform"
+            " (status = %d)",
+            static_cast<uint32_t>(state.status));
+        return false;
+    }
     platform::logMessage(LOG_DEBUG, "** Card reset **");
 
     sendCommand(CMD_RAW_DUMMY, 0x2000, nullptr, ROMCNT_CLK_SLOW | ROMCNT_DELAY2(0x18));
@@ -195,6 +211,13 @@ bool initKey1(BlowfishKey key) {
     if (!platform::HAS_HW_KEY2) {
         platform::logMessage(LOG_ERR, "Key1 fail due to no Key2 support");
         return false; // TODO impl SW KEY2
+    }
+
+    if (state.status != Status::RAW) {
+        platform::logMessage(LOG_ERR,
+            "Trying to init KEY1 from not RAW (status = %d)",
+            static_cast<uint32_t>(state.status));
+        return false;
     }
 
     state.key2_mn = 0xC99ACE;
@@ -222,6 +245,8 @@ bool initKey1(BlowfishKey key) {
         platform::logMessage(LOG_ERR, "Key1 fail: mismatching chipid: (raw) %X != (key1) %X", state.chipid, state.key1_chipid);
         return false;
     }
+
+    state.status = Status::KEY1;
     return true;
 }
 
@@ -229,6 +254,13 @@ bool initKey2() {
     if (!platform::HAS_HW_KEY2) {
         platform::logMessage(LOG_ERR, "Key2 fail due to no Key2 support");
         return false; // TODO impl SW KEY2
+    }
+
+    if (state.status != Status::KEY1) {
+        platform::logMessage(LOG_ERR,
+            "Trying to init KEY2 from not KEY1 (status = %d)",
+            static_cast<uint32_t>(state.status));
+        return false;
     }
 
     key1_cmd(CMD_KEY1_ACTIVATE_KEY2, 0, 0);
@@ -241,7 +273,20 @@ bool initKey2() {
         platform::logMessage(LOG_ERR, "Key2 fail: mismatching chipid: (raw) %X != (key2) %X", state.chipid, state.key2_chipid);
         return false;
     }
+
+    state.status = Status::KEY2;
     return true;
 }
+}
+
+namespace {
+class init {
+public:
+    init() {
+        state.status = platform::INITIAL_ENCRYPTION;
+    }
+};
+
+init _;
 }
 }

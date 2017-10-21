@@ -12,6 +12,10 @@ enum class BlowfishKey {
     NTR, B9RETAIL, B9DEV
 };
 
+enum class Status {
+    RAW, KEY1, KEY2
+};
+
 struct State {
 public:
     /// The chip ID, stored in `ntrcard_init`
@@ -51,6 +55,9 @@ public:
     std::uint64_t key2_x;
     /// The KEY2 Y register
     std::uint64_t key2_y;
+
+    /// The current status
+    Status status;
 };
 
 class OpFlags {

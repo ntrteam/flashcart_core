@@ -171,32 +171,94 @@ bool writeNor(const uint32_t dest_address, const uint32_t length, const uint8_t 
     return true;
 }
 
-bool trySecureInit(BlowfishKey key) {
-    union {
-        uint32_t u32;
-        uint8_t bytes[4];
-    } buf;
+bool sendAndVerifyRawInit() {
+    if (ntrcard::state.status != ntrcard::Status::RAW) {
+        logMessage(LOG_ERR, "r4isdhc: sendAndVerifyRawInit: status (%d) not RAW",
+            static_cast<uint32_t>(ntrcard::state.status));
+        return false;
+    }
 
-    ntrcard::init();
+    CmdBuf4 buf;
+    // this is actually the NOR write disable command
+    // the r4isdhc will respond to cart commands with 0xFFFFFFFF if
+    // the "magic" command hasn't been sent, so we check for that
+    sendCommand(0x40199, 4, buf.u8, 0x180000);
+    if (buf.u32 != 0xFFFFFFFF) {
+        logMessage(LOG_ERR, "r4isdhc: sendAndVerifyRawInit: pre-test returned 0x%08X", buf.u32);
+        return false;
+    }
+
+    if (platform::CAN_RESET && !ntrcard::init()) {
+        logMessage(LOG_ERR, "r4isdhc: sendAndVerifyRawInit: ntrcard::init failed");
+        return false;
+    }
+    sendCommand(0x68, 4, nullptr, 0x180000);
+    // now it will return zeroes
+    sendCommand(0x40199, 4, buf.u8, 0x180000);
+    if (buf.u32 == 0) {
+        return true;
+    }
+
+    logMessage(LOG_ERR, "r4isdhc: sendAndVerifyRawInit: post-test returned 0x%08X", buf.u32);
+    return false;
+}
+
+bool sendAndVerifyKey2Init() {
+    if (ntrcard::state.status != ntrcard::Status::KEY2) {
+        logMessage(LOG_ERR, "r4isdhc: sendAndVerifyKey2Init: status (%d) not KEY2",
+            static_cast<uint32_t>(ntrcard::state.status));
+        return false;
+    }
+
+    CmdBuf4 buf;
+    sendCommand(0x66, 4, nullptr, 0x586000);
+    ntrcard::state.status = ntrcard::Status::RAW;
+
+    sendCommand(0x40199, 4, buf.u8, 0x180000);
+
+    // FIXME this is a really poor check
+    // a non-r4isdhc cart will stay in KEY2 and likely return something that isn't all-FF
+    if (buf.u32 != 0xFFFFFFFF) {
+        return true;
+    }
+
+    logMessage(LOG_ERR, "r4isdhc: sendAndVerifyKey2Init: post-test returned 0x%08X", buf.u32);
+    ntrcard::state.status = ntrcard::Status::KEY2;
+    return false;
+}
+
+bool trySecureInit(BlowfishKey key) {
+    if (ntrcard::state.status != ntrcard::Status::RAW) {
+        if (platform::CAN_RESET) {
+            if (!ntrcard::init()) {
+                logMessage(LOG_ERR, "r4isdhc: trySecureInit: ntrcard::init failed");
+                return false;
+            }
+        } else {
+            logMessage(LOG_ERR, "r4isdhc: trySecureInit: status (%d) not RAW and cannot reset",
+                static_cast<uint32_t>(ntrcard::state.status));
+            return false;
+        }
+    }
     ntrcard::state.hdr_key1_romcnt = ntrcard::state.key1_romcnt = 0x81808F8;
     ntrcard::state.hdr_key2_romcnt = ntrcard::state.key2_romcnt = 0x416657;
     ntrcard::state.key2_seed = 0;
     if (!ntrcard::initKey1(key)) {
-        logMessage(LOG_ERR, "r4isdhc: init key1 (key = %d) failed", static_cast<int>(key));
+        logMessage(LOG_ERR, "r4isdhc: trySecureInit: init key1 (key = %d) failed", static_cast<int>(key));
         return false;
     }
     if (!ntrcard::initKey2()) {
-        logMessage(LOG_ERR, "r4isdhc: init key2 failed");
+        logMessage(LOG_ERR, "r4isdhc: trySecureInit: init key2 failed");
         return false;
     }
-    sendCommand(0x66, 4, nullptr, 0x586000);
-    sendCommand(0x40199, 4, buf.bytes, 0x180000);
-    return buf.u32 != 0xFFFFFFFF;
+
+    return sendAndVerifyKey2Init();
 }
 }
 
 class R4iSDHC : Flashcart {
     bool old_cart;
+
 public:
     // Name & Size of Flash Memory
     R4iSDHC() : Flashcart("R4iSDHC family", 0x200000), old_cart(false) { }
@@ -217,29 +279,28 @@ public:
     }
 
     bool initialize() {
-        CmdBuf4 buf;
-        // this is actually the NOR write disable command
-        // the r4isdhc will respond to cart commands with 0xFFFFFFFF if
-        // the "magic" command hasn't been sent, so we check for that
-        sendCommand(0x40199, 4, buf.u8, 0x180000);
-        if (buf.u32 != 0xFFFFFFFF) {
-            return false;
-        }
+        switch (ntrcard::state.status) {
+            case ntrcard::Status::RAW: {
+                if (sendAndVerifyRawInit()) {
+                    old_cart = false;
+                    return true;
+                } else if (trySecureInit(BlowfishKey::NTR)
+                    || trySecureInit(BlowfishKey::B9RETAIL)
+                    || trySecureInit(BlowfishKey::B9DEV)) {
+                    old_cart = true;
+                    return true;
+                }
 
-        ntrcard::init();
-        sendCommand(0x68, 4, nullptr, 0x180000);
-        // now it will return zeroes
-        sendCommand(0x40199, 4, buf.u8, 0x180000);
-        if (buf.u32 == 0) {
-            return true;
-        }
-
-        // ok, we go the hard way
-        if (trySecureInit(BlowfishKey::NTR)
-            || trySecureInit(BlowfishKey::B9RETAIL)
-            || trySecureInit(BlowfishKey::B9DEV)) {
-            old_cart = true;
-            return true;
+                logMessage(LOG_ERR, "r4isdhc: init from RAW failed");
+                return false;
+            }
+            case ntrcard::Status::KEY2: {
+                return sendAndVerifyKey2Init();
+            }
+            default: {
+                logMessage(LOG_ERR, "r4isdhc: Unexpected encryption status %d", ntrcard::state.status);
+                break;
+            }
         }
 
         return false;
