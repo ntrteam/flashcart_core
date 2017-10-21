@@ -17,12 +17,15 @@ enum log_priority {
 // override these in platform.cpp
 namespace platform {
 extern const bool HAS_HW_KEY2;
+extern const bool BYPASS_CART_INIT;
 
 std::int32_t resetCard();
 bool sendCommand(const std::uint8_t *cmdbuf, std::uint16_t response_len, std::uint8_t *resp, ntrcard::OpFlags flags);
 void ioDelay(std::uint32_t us);
 void initBlowfishPS(std::uint32_t (&ps)[ntrcard::BLOWFISH_PS_N], ntrcard::BlowfishKey key = ntrcard::BlowfishKey::NTR);
 void initKey2Seed(std::uint64_t x, std::uint64_t y);
+void enableSecureFlagOverride();
+void disableSecureFlagOverride();
 
 void showProgress(std::uint32_t current, std::uint32_t total, const char* status_string);
 int logMessage(log_priority priority, const char *fmt, ...);
