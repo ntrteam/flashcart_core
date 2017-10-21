@@ -16,7 +16,19 @@ enum log_priority {
 
 // override these in platform.cpp
 namespace platform {
+/// Whether the platform has hardware KEY2 support.
+/// If false, flashcart_core will do KEY2 in software. (TODO IMPL)
+/// If unset, defaults to false.
 extern const bool HAS_HW_KEY2;
+
+/// Whether the platform can reset a cart, whether electronically or by asking
+/// the user to physically reinsert the card.
+/// If unset, defaults to false.
+extern const bool CAN_RESET;
+
+/// The initial encryption status when flashcart_core first gains control.
+/// If unset, defaults to RAW.
+extern const ntrcard::Status INITIAL_ENCRYPTION;
 
 std::int32_t resetCard();
 bool sendCommand(const std::uint8_t *cmdbuf, std::uint16_t response_len, std::uint8_t *resp, ntrcard::OpFlags flags);
