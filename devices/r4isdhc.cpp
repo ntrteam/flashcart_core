@@ -332,11 +332,11 @@ public:
         return
             // 1:1 map the ROM <=> NOR (unless it's an "old" cart - those don't seem to have
             // a mapping in the NOR)
-            (old_cart || writeNor(0x40, 0x100, map, true, "Writing ROM <=> NOR map")) &&
             writeNor(0x1000, 0x48, blowfish_key, true, "Writing Blowfish key (1)") && // blowfish P array
-            writeNor(0x1F1000, 0x48, blowfish_key, true, "Writing Blowfish key (2)") &&
-            writeNor(0x2000, 0x1000, blowfish_key+0x48, true, "Writing Blowfish key (3)") && // blowfish S boxes
-            writeNor(0x1F2000, 0x1000, blowfish_key+0x48, true, "Writing Blowfish key (4)") &&
+            writeNor(0x2000, 0x1000, blowfish_key+0x48, true, "Writing Blowfish key (2)") && // blowfish S boxes
+            (old_cart || writeNor(0x40, 0x100, map, true, "Writing ROM <=> NOR map")) &&
+            writeNor(0x1F1000, 0x48, blowfish_key, true, "Writing Blowfish key (3)") && // blowfish P array
+            writeNor(0x1F2000, 0x1000, blowfish_key+0x48, true, "Writing Blowfish key (4)") && // blowfish S boxes
             writeNor(0x7E00, firm_size, firm, true, "Writing FIRM (1)") && // FIRM
             // older carts read 0x8000-0x10000 from 0x1F8000-0x200000 instead of from 0x8000
             writeNor(0x1F7E00, std::min<uint32_t>(firm_size, old_cart ? 0x8200 : 0x200), firm, true,
