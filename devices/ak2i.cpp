@@ -115,6 +115,13 @@ public:
     {
         uint8_t garbage[4];
         logMessage(LOG_INFO, "AK2i: Init");
+
+        if (platform::CAN_RESET) {
+            ntrcard::init();
+        } else {
+            platform::resetCard();
+        }
+
         sendCommand(ak2i_cmdGetHWRevision, 4, (uint8_t*)&m_ak2i_hwrevision, 0);
         logMessage(LOG_NOTICE, "AK2i: HW Revision = %08x", m_ak2i_hwrevision);
 
