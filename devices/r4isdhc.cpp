@@ -171,41 +171,52 @@ bool writeNor(const uint32_t dest_address, const uint32_t length, const uint8_t 
     return true;
 }
 
-bool sendAndVerifyRawInit() {
-    if (ntrcard::state.status != ntrcard::Status::RAW) {
-        logMessage(LOG_ERR, "r4isdhc: sendAndVerifyRawInit: status (%d) not RAW",
-            static_cast<uint32_t>(ntrcard::state.status));
-        return false;
-    }
+bool checkCartType1() {
+    ntrcard::Status orig_status = ntrcard::state.status;
 
     CmdBuf4 buf;
     // this is actually the NOR write disable command
     // the r4isdhc will respond to cart commands with 0xFFFFFFFF if
     // the "magic" command hasn't been sent, so we check for that
     sendCommand(0x40199, 4, buf.u8, 0x180000);
-    if (buf.u32 != 0xFFFFFFFF) {
-        logMessage(LOG_ERR, "r4isdhc: sendAndVerifyRawInit: pre-test returned 0x%08X", buf.u32);
-        return false;
+    if (ntrcard::state.status == ntrcard::Status::RAW) {
+        if (buf.u32 != 0xFFFFFFFF) {
+            logMessage(LOG_ERR, "r4isdhc: checkCartType1: pre-test returned 0x%08X", buf.u32);
+            return false;
+        }
+    } else {
+        if (buf.u32 == 0) {
+            logMessage(LOG_ERR, "r4isdhc: checkCartType1: pre-test returned 0x%08X", buf.u32);
+            return false;
+        }
     }
 
-    if (platform::CAN_RESET && !ntrcard::init()) {
-        logMessage(LOG_ERR, "r4isdhc: sendAndVerifyRawInit: ntrcard::init failed");
-        return false;
+    if (platform::CAN_RESET) {
+        if (!ntrcard::init()) {
+            logMessage(LOG_ERR, "r4isdhc: checkCartType1: ntrcard::init failed");
+            return false;
+        }
+        orig_status = ntrcard::Status::RAW;
     }
+
+    // only type 1 carts support 0x68 command
     sendCommand(0x68, 4, nullptr, 0x180000);
+    ntrcard::state.status = ntrcard::Status::RAW;
+
     // now it will return zeroes
     sendCommand(0x40199, 4, buf.u8, 0x180000);
     if (buf.u32 == 0) {
         return true;
     }
-
-    logMessage(LOG_ERR, "r4isdhc: sendAndVerifyRawInit: post-test returned 0x%08X", buf.u32);
+    ntrcard::state.status = orig_status;
+    logMessage(LOG_ERR, "r4isdhc: checkCartType1: post-test returned 0x%08X", buf.u32);
     return false;
 }
 
-bool sendAndVerifyKey2Init() {
+bool checkCartType2() {
+    // this check only work on the activated BF key2
     if (ntrcard::state.status != ntrcard::Status::KEY2) {
-        logMessage(LOG_ERR, "r4isdhc: sendAndVerifyKey2Init: status (%d) not KEY2",
+        logMessage(LOG_ERR, "r4isdhc: checkCartType2: status (%d) not KEY2",
             static_cast<uint32_t>(ntrcard::state.status));
         return false;
     }
@@ -222,7 +233,7 @@ bool sendAndVerifyKey2Init() {
         return true;
     }
 
-    logMessage(LOG_ERR, "r4isdhc: sendAndVerifyKey2Init: post-test returned 0x%08X", buf.u32);
+    logMessage(LOG_ERR, "r4isdhc: checkCartType2: post-test returned 0x%08X", buf.u32);
     ntrcard::state.status = ntrcard::Status::KEY2;
     return false;
 }
@@ -252,16 +263,17 @@ bool trySecureInit(BlowfishKey key) {
         return false;
     }
 
-    return sendAndVerifyKey2Init();
+    // TODO check chip id
+    return true;
 }
 }
 
 class R4iSDHC : Flashcart {
-    bool old_cart;
+    uint8_t cart_type;
 
 public:
     // Name & Size of Flash Memory
-    R4iSDHC() : Flashcart("R4iSDHC family", 0x200000), old_cart(false) { }
+    R4iSDHC() : Flashcart("R4iSDHC family", 0x200000), cart_type(1) { }
 
     const char* getAuthor() {
         return
@@ -279,30 +291,27 @@ public:
     }
 
     bool initialize() {
-        switch (ntrcard::state.status) {
-            case ntrcard::Status::RAW: {
-                if (sendAndVerifyRawInit()) {
-                    old_cart = false;
-                    return true;
-                } else if (trySecureInit(BlowfishKey::NTR)
-                    || trySecureInit(BlowfishKey::B9RETAIL)
-                    || trySecureInit(BlowfishKey::B9DEV)) {
-                    old_cart = true;
-                    return true;
-                }
-
-                logMessage(LOG_ERR, "r4isdhc: init from RAW failed");
-                return false;
-            }
-            case ntrcard::Status::KEY2: {
-                return sendAndVerifyKey2Init();
-            }
-            default: {
-                logMessage(LOG_ERR, "r4isdhc: Unexpected encryption status %d", ntrcard::state.status);
-                break;
-            }
+        if (checkCartType1()) {
+            cart_type = 1;
+            logMessage(LOG_ERR, "r4isdhc: found type 1 cart");
+            return true;
+        }
+        if (ntrcard::state.status == ntrcard::Status::RAW) {
+            trySecureInit(BlowfishKey::NTR) ||
+                trySecureInit(BlowfishKey::B9RETAIL) ||
+                trySecureInit(BlowfishKey::B9DEV);
+        }
+        if (ntrcard::state.status != ntrcard::Status::KEY2) {
+            logMessage(LOG_ERR, "r4isdhc: Unexpected encryption status %d", ntrcard::state.status);
+            return false;
         }
 
+        if (checkCartType2()) {
+            cart_type = 2;
+            logMessage(LOG_ERR, "r4isdhc: found type 2 cart");
+            return true;
+        }
+        logMessage(LOG_ERR, "r4isdhc: not support type 2");
         return false;
     }
 
@@ -326,6 +335,8 @@ public:
             return false;
         }
 
+        // type2 carts read 0x8000-0x10000 from 0x1F8000-0x200000 instead of from 0x8000
+        uint32_t firm_header_size = cart_type == 1 ? 0x200 : 0x8200;
         uint8_t map[0x100] = {0};
         // set the 2nd ROM map to some high value (0x7FFFFFFF in big-endian)
         map[4] = 0x7F; map[5] = 0xFF; map[6] = 0xFF; map[7] = 0xFF;
@@ -334,12 +345,15 @@ public:
             // a mapping in the NOR)
             writeNor(0x1000, 0x48, blowfish_key, true, "Writing Blowfish key (1)") && // blowfish P array
             writeNor(0x2000, 0x1000, blowfish_key+0x48, true, "Writing Blowfish key (2)") && // blowfish S boxes
-            (old_cart || writeNor(0x40, 0x100, map, true, "Writing ROM <=> NOR map")) &&
+            (
+                (cart_type == 1 && writeNor(0x40, 0x100, map, true, "Writing ROM <=> NOR map")) ||
+                (cart_type == 2 && true) // type 2 not need ROM-NOR map
+            ) &&
             writeNor(0x1F1000, 0x48, blowfish_key, true, "Writing Blowfish key (3)") && // blowfish P array
             writeNor(0x1F2000, 0x1000, blowfish_key+0x48, true, "Writing Blowfish key (4)") && // blowfish S boxes
             writeNor(0x7E00, firm_size, firm, true, "Writing FIRM (1)") && // FIRM
-            // older carts read 0x8000-0x10000 from 0x1F8000-0x200000 instead of from 0x8000
-            writeNor(0x1F7E00, std::min<uint32_t>(firm_size, old_cart ? 0x8200 : 0x200), firm, true,
+            // type2 carts read 0x8000-0x10000 from 0x1F8000-0x200000 instead of from 0x8000
+            writeNor(0x1F7E00, std::min<uint32_t>(firm_size, firm_header_size), firm, true,
                 "Writing FIRM (2)"); // FIRM header
     }
 };
