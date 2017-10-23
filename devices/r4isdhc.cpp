@@ -184,11 +184,6 @@ bool checkCartType1() {
             logMessage(LOG_ERR, "r4isdhc: checkCartType1: pre-test returned 0x%08X", buf.u32);
             return false;
         }
-    } else {
-        if (buf.u32 == 0) {
-            logMessage(LOG_ERR, "r4isdhc: checkCartType1: pre-test returned 0x%08X", buf.u32);
-            return false;
-        }
     }
 
     if (platform::CAN_RESET) {
@@ -314,6 +309,7 @@ public:
                 break;
             default:
                 logMessage(LOG_ERR, "r4isdhc: Unexpected encryption status %d", ntrcard::state.status);
+                break;
         }
         logMessage(LOG_ERR, "r4isdhc: not support type 2");
         return false;
@@ -339,8 +335,6 @@ public:
             return false;
         }
 
-        // type2 carts read 0x8000-0x10000 from 0x1F8000-0x200000 instead of from 0x8000
-        uint32_t firm_header_size = cart_type == 1 ? 0x200 : 0x8200;
         uint8_t map[0x100] = {0};
         // set the 2nd ROM map to some high value (0x7FFFFFFF in big-endian)
         map[4] = 0x7F; map[5] = 0xFF; map[6] = 0xFF; map[7] = 0xFF;
@@ -357,7 +351,7 @@ public:
             writeNor(0x1F2000, 0x1000, blowfish_key+0x48, true, "Writing Blowfish key (4)") && // blowfish S boxes
             writeNor(0x7E00, firm_size, firm, true, "Writing FIRM (1)") && // FIRM
             // type2 carts read 0x8000-0x10000 from 0x1F8000-0x200000 instead of from 0x8000
-            writeNor(0x1F7E00, std::min<uint32_t>(firm_size, firm_header_size), firm, true,
+            writeNor(0x1F7E00, std::min<uint32_t>(firm_size, (cart_type == 1 ? 0x200 : 0x8200)), firm, true,
                 "Writing FIRM (2)"); // FIRM header
     }
 };
