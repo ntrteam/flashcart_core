@@ -263,8 +263,7 @@ bool trySecureInit(BlowfishKey key) {
         return false;
     }
 
-    // TODO check chip id
-    return true;
+    return checkCartType2();
 }
 }
 
@@ -293,23 +292,28 @@ public:
     bool initialize() {
         if (checkCartType1()) {
             cart_type = 1;
-            logMessage(LOG_ERR, "r4isdhc: found type 1 cart");
+            logMessage(LOG_DEBUG, "r4isdhc: found type 1 cart");
             return true;
         }
-        if (ntrcard::state.status == ntrcard::Status::RAW) {
-            trySecureInit(BlowfishKey::NTR) ||
-                trySecureInit(BlowfishKey::B9RETAIL) ||
-                trySecureInit(BlowfishKey::B9DEV);
-        }
-        if (ntrcard::state.status != ntrcard::Status::KEY2) {
-            logMessage(LOG_ERR, "r4isdhc: Unexpected encryption status %d", ntrcard::state.status);
-            return false;
-        }
-
-        if (checkCartType2()) {
-            cart_type = 2;
-            logMessage(LOG_ERR, "r4isdhc: found type 2 cart");
-            return true;
+        switch (ntrcard::state.status) {
+            case ntrcard::Status::RAW:
+                if (trySecureInit(BlowfishKey::NTR)
+                    || trySecureInit(BlowfishKey::B9RETAIL)
+                    || trySecureInit(BlowfishKey::B9DEV)) {
+                    cart_type = 2;
+                    logMessage(LOG_DEBUG, "r4isdhc: found type 2 cart");
+                    return true;
+                };
+                break;
+            case ntrcard::Status::KEY2:
+                if (checkCartType2()) {
+                    cart_type = 2;
+                    logMessage(LOG_DEBUG, "r4isdhc: found type 2 cart");
+                    return true;
+                }
+                break;
+            default:
+                logMessage(LOG_ERR, "r4isdhc: Unexpected encryption status %d", ntrcard::state.status);
         }
         logMessage(LOG_ERR, "r4isdhc: not support type 2");
         return false;
