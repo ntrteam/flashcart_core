@@ -13,7 +13,7 @@ enum class BlowfishKey {
 };
 
 enum class Status {
-    RAW, KEY1, KEY2
+    RAW, KEY1, KEY2, UNKNOWN
 };
 
 struct State {

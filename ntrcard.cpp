@@ -243,6 +243,7 @@ bool initKey1(BlowfishKey key) {
     key1_cmd(CMD_KEY1_CHIPID, 4, reinterpret_cast<uint8_t *>(&state.key1_chipid));
     if (state.key1_chipid != state.chipid) {
         platform::logMessage(LOG_ERR, "Key1 fail: mismatching chipid: (raw) %X != (key1) %X", state.chipid, state.key1_chipid);
+        state.status = Status::UNKNOWN;
         return false;
     }
 
@@ -271,6 +272,7 @@ bool initKey2() {
     ntrcard::sendCommand(CMD_KEY2_CHIPID, 4, reinterpret_cast<uint8_t *>(&state.key2_chipid), state.key2_romcnt);
     if (state.key2_chipid != state.chipid) {
         platform::logMessage(LOG_ERR, "Key2 fail: mismatching chipid: (raw) %X != (key2) %X", state.chipid, state.key2_chipid);
+        state.status = Status::UNKNOWN;
         return false;
     }
 
