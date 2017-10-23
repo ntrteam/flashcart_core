@@ -11,12 +11,6 @@ __attribute__((weak)) void showProgress(std::uint32_t current, std::uint32_t tot
 
 __attribute__((weak)) int logMessage(log_priority priority, const char *fmt, ...) { return 0; }
 
-__attribute__((weak)) extern const bool HAS_HW_KEY2 = false;
-
-__attribute__((weak)) extern const bool CAN_RESET = false;
-
-__attribute__((weak)) extern const ntrcard::Status INITIAL_ENCRYPTION = ntrcard::Status::RAW;
-
 __attribute__((weak)) std::int32_t resetCard() {
     if (CAN_RESET) {
         logMessage(LOG_ERR, "resetCard called but platform did not implement");
