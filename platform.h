@@ -36,6 +36,12 @@ void ioDelay(std::uint32_t us);
 void initBlowfishPS(std::uint32_t (&ps)[ntrcard::BLOWFISH_PS_N], ntrcard::BlowfishKey key = ntrcard::BlowfishKey::NTR);
 void initKey2Seed(std::uint64_t x, std::uint64_t y);
 
+void startSPITransfer();
+void writeSPI(uint8_t op);
+uint8_t readSPI();
+void waitSPIBusy();
+void endSPITransfer();
+
 void showProgress(std::uint32_t current, std::uint32_t total, const char* status_string);
 int logMessage(log_priority priority, const char *fmt, ...);
 }
