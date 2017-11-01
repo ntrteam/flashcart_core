@@ -234,17 +234,13 @@ bool checkCartType2() {
 }
 
 bool trySecureInit(BlowfishKey key) {
-    if (ntrcard::state.status != ntrcard::Status::RAW) {
-        if (platform::CAN_RESET) {
-            if (!ntrcard::init()) {
-                logMessage(LOG_ERR, "r4isdhc: trySecureInit: ntrcard::init failed");
-                return false;
-            }
-        } else {
-            logMessage(LOG_ERR, "r4isdhc: trySecureInit: status (%d) not RAW and cannot reset",
-                static_cast<uint32_t>(ntrcard::state.status));
-            return false;
-        }
+    if (platform::CAN_RESET && !ntrcard::init()) {
+        logMessage(LOG_ERR, "r4isdhc: trySecureInit: ntrcard::init failed");
+        return false;
+    } else if (ntrcard::state.status != ntrcard::Status::RAW) {
+        logMessage(LOG_ERR, "r4isdhc: trySecureInit: status (%d) not RAW and cannot reset",
+            static_cast<uint32_t>(ntrcard::state.status));
+        return false;
     }
     ntrcard::state.hdr_key1_romcnt = ntrcard::state.key1_romcnt = 0x81808F8;
     ntrcard::state.hdr_key2_romcnt = ntrcard::state.key2_romcnt = 0x416657;
