@@ -118,9 +118,6 @@ void read_header() {
     state.hdr_key1_romcnt = state.key1_romcnt = *reinterpret_cast<uint32_t *>(hdr + 0x64);
     state.hdr_key2_romcnt = state.key2_romcnt = *reinterpret_cast<uint32_t *>(hdr + 0x60);
     state.key2_seed = *reinterpret_cast<uint8_t *>(hdr + 0x13);
-
-    platform::logMessage(LOG_DEBUG, "Read header; state = { game_code = 0x%X, hdr_key1_romcnt = 0x%08X, hdr_key2_romcnt = 0x%08X, key2_seed = 0x%X }",
-        state.game_code, state.hdr_key1_romcnt, state.hdr_key2_romcnt, state.key2_seed);
 }
 
 void key1_cmdf(const uint8_t cmdarg, const uint32_t size, uint8_t *const dest, const uint16_t arg, const uint32_t ij, const uint32_t flags) {
@@ -170,8 +167,6 @@ static_assert(OpFlags(0)
 State state;
 
 bool sendCommand(const uint8_t *cmdbuf, uint16_t response_len, uint8_t *resp, OpFlags flags) {
-    platform::logMessage(LOG_DEBUG, "Sending cmd: %02X %02X %02X %02X %02X %02X %02X %02X ",
-        cmdbuf[0], cmdbuf[1], cmdbuf[2], cmdbuf[3], cmdbuf[4], cmdbuf[5], cmdbuf[6], cmdbuf[7]);
     if (state.status == Status::KEY2) {
         flags = flags.key2_command(true).key2_response(true);
     }
@@ -197,13 +192,13 @@ bool init() {
             static_cast<uint32_t>(state.status));
         return false;
     }
-    platform::logMessage(LOG_DEBUG, "** Card reset **");
 
     sendCommand(CMD_RAW_DUMMY, 0x2000, nullptr, ROMCNT_CLK_SLOW | ROMCNT_DELAY2(0x18));
     platform::ioDelay(0x40000);
     sendCommand(CMD_RAW_CHIPID, 4, reinterpret_cast<uint8_t *>(&state.chipid), ROMCNT_CLK_SLOW | ROMCNT_DELAY2(0x18));
-    platform::logMessage(LOG_DEBUG, "Read chipid = %X", state.chipid);
     read_header();
+    platform::logMessage(LOG_DEBUG, "Cart init; state = { chipid = 0x%08X, game_code = 0x%08X, hdr_key1_romcnt = 0x%08X, hdr_key2_romcnt = 0x%08X, key2_seed = 0x%X }",
+        state.chipid, state.game_code, state.hdr_key1_romcnt, state.hdr_key2_romcnt, state.key2_seed);
     return true;
 }
 
