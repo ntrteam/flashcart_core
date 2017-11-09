@@ -229,6 +229,8 @@ bool checkCartType2() {
     }
 
     logMessage(LOG_ERR, "r4isdhc: checkCartType2: post-test returned 0x%08X", buf.u32);
+    // i'm not sure if there's any point to this
+    // the encryption state's probably desynced if the previous command returned 0xFFFFFFFF
     ntrcard::state.status = ntrcard::Status::KEY2;
     return false;
 }
@@ -283,32 +285,37 @@ public:
     bool initialize() {
         if (checkCartType1()) {
             cart_type = 1;
-            logMessage(LOG_DEBUG, "r4isdhc: found type 1 cart");
-            return true;
+        } else {
+            switch (ntrcard::state.status) {
+                case ntrcard::Status::RAW:
+                    if (!trySecureInit(BlowfishKey::NTR)
+                        && !trySecureInit(BlowfishKey::B9RETAIL)
+                        && !trySecureInit(BlowfishKey::B9DEV)) {
+                        logMessage(LOG_DEBUG, "r4isdhc: type 2 init from RAW fail");
+                        return false;
+                    }
+                    break;
+                case ntrcard::Status::KEY2:
+                    if (!checkCartType2()) {
+                        logMessage(LOG_DEBUG, "r4isdhc: type 2 init from KEY2 fail");
+                        return false;
+                    }
+                    break;
+                default:
+                    logMessage(LOG_ERR, "r4isdhc: Unexpected encryption status %d", ntrcard::state.status);
+                    return false;
+            }
+            cart_type = 2;
         }
-        switch (ntrcard::state.status) {
-            case ntrcard::Status::RAW:
-                if (trySecureInit(BlowfishKey::NTR)
-                    || trySecureInit(BlowfishKey::B9RETAIL)
-                    || trySecureInit(BlowfishKey::B9DEV)) {
-                    cart_type = 2;
-                    logMessage(LOG_DEBUG, "r4isdhc: found type 2 cart");
-                    return true;
-                };
-                break;
-            case ntrcard::Status::KEY2:
-                if (checkCartType2()) {
-                    cart_type = 2;
-                    logMessage(LOG_DEBUG, "r4isdhc: found type 2 cart");
-                    return true;
-                }
-                break;
-            default:
-                logMessage(LOG_ERR, "r4isdhc: Unexpected encryption status %d", ntrcard::state.status);
-                break;
+
+        uint32_t read1 = norRead(0), read2 = norRead(0);
+        if (read1 != read2) {
+            logMessage(LOG_ERR, "r4isdhc: two reads from flash @ 0 returned 0x%08lX and 0x%08lX", read1, read2);
+            return false;
         }
-        logMessage(LOG_ERR, "r4isdhc: not support type 2");
-        return false;
+
+        logMessage(LOG_ERR, "r4isdhc: found type %d cart", cart_type);
+        return true;
     }
 
     void shutdown() { }
