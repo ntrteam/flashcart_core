@@ -6,7 +6,6 @@
 #define BIT(n) (1 << (n))
 
 namespace flashcart_core {
-using ntrcard::sendCommand;
 using platform::logMessage;
 using platform::showProgress;
 
@@ -54,7 +53,7 @@ private:
         cmdbuf[2] = (address >>  8) & 0xFF;
         cmdbuf[3] = (address >>  0) & 0xFF;
 
-        sendCommand(cmdbuf, 0, nullptr); // TODO: find IDB and get the latencies.
+        m_card->sendCommand(cmdbuf, nullptr, 0, 32); // TODO: find IDB and get the latencies.
     }
 
     void write_cmd(uint32_t address, uint8_t value) {
@@ -66,20 +65,18 @@ private:
         cmdbuf[3] = (address >>  0) & 0xFF;
         cmdbuf[4] = value;
 
-        sendCommand(cmdbuf, 0, nullptr);
+        m_card->sendCommand(cmdbuf, nullptr, 0, 32);
     }
 
 public:
     R4SDHC_DualCore() : Flashcart("R4 SDHC Dual Core", 0x400000) { }
 
     bool initialize() {
-        uint8_t dummy[4];
-
         logMessage(LOG_INFO, "R4SDHC: Init");
-        sendCommand(cmdUnkD0AA, 4, dummy);
-        sendCommand(cmdUnkD0, 0, nullptr);
-        sendCommand(cmdUnkD0AA, 4, dummy);
-        sendCommand(cmdUnkD0AA, 4, dummy);
+        m_card->sendCommand(cmdUnkD0AA, nullptr, 4, 32);
+        m_card->sendCommand(cmdUnkD0, nullptr, 0, 32);
+        m_card->sendCommand(cmdUnkD0AA, nullptr, 4, 32);
+        m_card->sendCommand(cmdUnkD0AA, nullptr, 4, 32);
 
         logMessage(LOG_WARN, "R4SDHC: We have no way of detecting cart!");
         return true; // We have no way of checking yet.

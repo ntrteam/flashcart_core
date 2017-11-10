@@ -98,7 +98,6 @@ Known flashchips that are "unsupported":
 #include <cstring>
 
 namespace flashcart_core {
-using ntrcard::sendCommand;
 using platform::logMessage;
 using platform::showProgress;
 
@@ -138,7 +137,7 @@ private:
 
         uint32_t ret;
 
-        sendCommand(cmd, 4, (uint8_t*)&ret, 0xa7180000);
+        m_card->sendCommand(cmd, (uint8_t*)&ret, 4, 0xa7180000);
         return ret;
     }
 
