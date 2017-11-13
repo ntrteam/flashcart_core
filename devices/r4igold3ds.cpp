@@ -6,7 +6,6 @@
 #define BIT(n) (1 << (n))
 
 namespace flashcart_core {
-using ntrcard::sendCommand;
 using platform::logMessage;
 using platform::showProgress;
 
@@ -62,7 +61,7 @@ private:
         cmdbuf[2] = (address >>  8) & 0xFF;
         cmdbuf[3] = (address >>  0) & 0xFF;
 
-        sendCommand(cmdbuf, 0x200, outbuf, 32);
+        m_card->sendCommand(cmdbuf, outbuf, 0x200, 32);
         r4i_wait_flash_busy();
     }
 
@@ -76,7 +75,7 @@ private:
         cmdbuf[2] = (address >>  8) & 0xFF;
         cmdbuf[3] = (address >>  0) & 0xFF;
 
-        sendCommand(cmdbuf, 4, (uint8_t*)&status, 32);
+        m_card->sendCommand(cmdbuf, &status, 4, 32);
         r4i_wait_flash_busy();
     }
 
@@ -91,14 +90,14 @@ private:
         cmdbuf[3] = (address >>  0) & 0xFF;
         cmdbuf[4] = value;
 
-        sendCommand(cmdbuf, 4, (uint8_t*)&status, 32);
+        m_card->sendCommand(cmdbuf, &status, 4, 32);
         r4i_wait_flash_busy();
     }
 
     void r4i_wait_flash_busy() {
         uint32_t state;
         do {
-            sendCommand(cmdWaitFlashBusy, 4, (uint8_t *)&state, 32);
+            m_card->sendCommand(cmdWaitFlashBusy, &state, 4, 32);
             logMessage(LOG_DEBUG, "R4iGold: waitFlashBusy = 0x%08x", state);
         } while ((state & 1) != 0);
     }
@@ -213,8 +212,8 @@ public:
         logMessage(LOG_INFO, "R4iGold: Init");
         uint32_t hw_revision;
         uint32_t hw_unknown;
-        sendCommand(cmdGetHWRevision, 4, (uint8_t*)&hw_revision, 0);
-        sendCommand(cmdUnknown, 4, (uint8_t*)&hw_unknown, 0);
+        m_card->sendCommand(cmdGetHWRevision, &hw_revision, 4, 0);
+        m_card->sendCommand(cmdUnknown, &hw_unknown, 4, 0);
         logMessage(LOG_NOTICE, "R4iGold: HW Revision = %08x", hw_revision);
         logMessage(LOG_NOTICE, "R4iGold: HW C7 value = %08x", hw_unknown);
 
