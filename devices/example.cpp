@@ -1,6 +1,6 @@
 #ifdef DONT_INCLUDE_EXAMPLE_PLEASE
 
-#include "device.h"
+#include "../device.h"
 
 namespace flashcart_core {
 using ntrcard::sendCommand;

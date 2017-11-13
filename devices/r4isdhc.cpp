@@ -1,7 +1,7 @@
 #include <cstring>
 #include <algorithm>
 
-#include "device.h"
+#include "../device.h"
 
 namespace flashcart_core {
 using ntrcard::sendCommand;

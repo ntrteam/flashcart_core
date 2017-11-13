@@ -1,5 +1,4 @@
-#include "device.h"
-#include "delay.h"
+#include "../device.h"
 
 #include <stdlib.h>
 #include <cstring>

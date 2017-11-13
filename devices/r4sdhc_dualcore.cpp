@@ -1,7 +1,7 @@
-#include "device.h"
-
 #include <cstring>
 #include <algorithm>
+
+#include "../device.h"
 
 #define BIT(n) (1 << (n))
 
