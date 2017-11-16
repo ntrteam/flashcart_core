@@ -1,7 +1,7 @@
+#include "device.h"
+
 #include <cstring>
 #include <algorithm>
-
-#include "../device.h"
 
 #define BIT(n) (1 << (n))
 
@@ -16,7 +16,8 @@ private:
     {
         uint8_t enc = 0;
         switch (m_r4i_type) {
-            case 1:
+            case 1: //rev9-D
+			case 3: //rev6-7 maybe 8
                 if (dec & BIT(0)) enc |= BIT(4);
                 if (dec & BIT(1)) enc |= BIT(3);
                 if (dec & BIT(2)) enc |= BIT(7);
@@ -26,7 +27,7 @@ private:
                 if (dec & BIT(6)) enc |= BIT(2);
                 if (dec & BIT(7)) enc |= BIT(5);
                 return enc;
-            case 2:
+            case 2: //rev4-5
                 enc = (offset % 256) + 9;
                 return enc ^ dec;
         }
@@ -171,6 +172,32 @@ private:
 
         return true;
     }
+	
+	bool injectNtrBootType3(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size)
+    {
+		const uint32_t blowfish_and_firm_hdr_base = 0x1F0000;
+		const uint32_t blowfish_adr = 0xA000;
+        const uint32_t firm_hdr_adr = 0xFE00;
+        const uint32_t firm_adr = 0x80000;
+
+        logMessage(LOG_INFO, "R4iGold: Injecting ntrboot");
+        uint8_t *chunk0 = (uint8_t *)malloc(0x10000);
+        readFlash(blowfish_and_firm_hdr_base, 0x10000, chunk0);
+        encrypt_memcpy(chunk0 + blowfish_adr, blowfish_key, 0x1048);
+        encrypt_memcpy(chunk0 + firm_hdr_adr, firm, 0x200);
+        writeFlash(blowfish_and_firm_hdr_base, 0x10000, chunk0);
+        free(chunk0);
+
+        uint32_t buf_size = PAGE_ROUND_UP(firm_size - 0x200, 0x10000);
+        uint8_t *firm_chunk = (uint8_t *)malloc(buf_size);
+        readFlash(firm_adr, buf_size, firm_chunk);
+        encrypt_memcpy(firm_chunk, firm + 0x200, firm_size);
+        writeFlash(firm_adr, buf_size, firm_chunk);
+
+        free(firm_chunk);
+
+        return true;
+    }
 
 protected:
     static const uint8_t cmdGetHWRevision[8];
@@ -189,12 +216,10 @@ public:
     const char *getDescription() {
         return "Works with many R4i Gold 3DS variants:\n"
                " * R4i Gold 3DS (RTS, rev A5/A6/A7) (r4ids.cn)\n"
-               " * R4i Gold 3DS (rev 4/5) (r4ids.cn)\n"
+               " * R4i Gold 3DS (rev 4/5/6/7/8?) (r4ids.cn)\n"
                " * R4i Gold 3DS Starter (r4ids.cn)\n"
                " * R4 3D Revolution (r4idsn.com)\n"
-               " * Infinity 3 R4i (r4infinity.com)\n"
-               "This will not work with a R4i Gold 3DS (r4ids.cn)\n"
-               "rev 6/7 though it will be detected as rev 4/5!";
+               " * Infinity 3 R4i (r4infinity.com)";
     }
 
     size_t getMaxLength()
@@ -203,6 +228,7 @@ public:
             case 1:
                 return 0x400000;
             case 2:
+			case 3:
                 return 0x200000;
         }
         return 0x0;
@@ -222,11 +248,20 @@ public:
             case 0xA5A5A5A5:
             case 0xA6A6A6A6:
             case 0xA7A7A7A7:
-                m_r4i_type = 1;
+                m_r4i_type = 1; //rev9-D
                 return true;
             case 0:
-                m_r4i_type = 2;
-                return true;
+				if     (hw_unknown == 0xa79bca95 /* || hw_unknown == 0x??? */ )
+				{
+					m_r4i_type = 2; //rev4-5
+					return true;
+				}
+				else if(hw_unknown == 0xb7db5bb5 /* || hw_unknown == 0x??? */ )
+				{
+					m_r4i_type = 3; //rev6-7 maybe 8
+					return true;
+				}
+			
         }
 
         return false;
@@ -268,6 +303,8 @@ public:
                 return injectNtrBootType1(blowfish_key, firm, firm_size);
             case 2:
                 return injectNtrBootType2(blowfish_key, firm, firm_size);
+			case 3:
+                return injectNtrBootType3(blowfish_key, firm, firm_size);
         }
         return false;
     }
