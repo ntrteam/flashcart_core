@@ -10,6 +10,16 @@ using ntrcard::sendCommand;
 using platform::logMessage;
 using platform::showProgress;
 
+typedef struct {
+    uint32_t blowfish_chunk_adr;
+    uint32_t blowfish_offset;
+    uint32_t firm_hdr_chunk_adr;
+    uint32_t firm_hdr_offset;
+    uint32_t firm_chunk_adr;
+    uint32_t firm_offset;
+    bool encrypt_header;
+} r4i_flash_setting;
+
 class R4i_Gold_3DS : Flashcart {
 private:
     uint8_t encrypt(uint8_t dec, uint32_t offset)
@@ -17,7 +27,7 @@ private:
         uint8_t enc = 0;
         switch (m_r4i_type) {
             case 1: //rev9-D
-			case 3: //rev6-7 maybe 8
+            case 3: //rev6-7 maybe 8
                 if (dec & BIT(0)) enc |= BIT(4);
                 if (dec & BIT(1)) enc |= BIT(3);
                 if (dec & BIT(2)) enc |= BIT(7);
@@ -104,99 +114,16 @@ private:
         } while ((state & 1) != 0);
     }
 
-    bool injectNtrBootType1(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size)
-    {
-        const uint32_t blowfish_adr = 0x0;
-        const uint32_t firm_hdr_adr = 0xEE00;
-        const uint32_t firm_adr = 0x80000;
-
-        logMessage(LOG_INFO, "R4iGold: Injecting ntrboot");
-        uint8_t *chunk0 = (uint8_t *)malloc(0x10000);
-        readFlash(blowfish_adr, 0x10000, chunk0);
-        encrypt_memcpy(chunk0, blowfish_key, 0x1048);
-        encrypt_memcpy(chunk0 + firm_hdr_adr, firm, 0x200);
-        writeFlash(blowfish_adr, 0x10000, chunk0);
-        free(chunk0);
-
-        uint32_t buf_size = PAGE_ROUND_UP(firm_size - 0x200, 0x10000);
-        uint8_t *firm_chunk = (uint8_t *)malloc(buf_size);
-        readFlash(firm_adr, buf_size, firm_chunk);
-        encrypt_memcpy(firm_chunk, firm + 0x200, firm_size);
-        writeFlash(firm_adr, buf_size, firm_chunk);
-
-        free(firm_chunk);
-
-        return true;
-    }
-
-    bool injectNtrBootType2(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size)
-    {
-        const uint32_t blowfish_adr = 0x0;
-        const uint32_t firm_chunk_adr = 0x80000;
-        //overall bootloader addr 0x82200* (*writing directly to this addr was destroying bootloader data)
-        const uint32_t firm_adr = 0x2200;
-        const uint32_t firm_hdr_chunk_adr = 0x1F0000;
-
-        //this is overall bootloader address 0x1FFE00
-        const uint32_t firm_hdr_adr = 0xFE00;
-
-
-        logMessage(LOG_INFO, "R4iGold: Injecting ntrboot");
-        uint8_t *chunk0 = (uint8_t *)malloc(0x10000);
-
-        readFlash(blowfish_adr, 0x10000, chunk0);
-        memcpy(chunk0, blowfish_key, 0x1048);
-
-        writeFlash(blowfish_adr, 0x10000, chunk0);
-
-        //readFlash(firm_chunk_adr, 0x10000, chunk0);
-        //encrypt_memcpy(chunk0 + firm_adr, firm + 0x200, firm_size);
-        //writeFlash(firm_chunk_adr, 0x10000, chunk0);
-
-        readFlash(firm_hdr_chunk_adr, 0x10000, chunk0);
-        memcpy(chunk0 + firm_hdr_adr, firm, 0x200);
-        writeFlash(firm_hdr_chunk_adr, 0x10000, chunk0);
-
-        free(chunk0);
-
-        uint32_t buf_size = PAGE_ROUND_UP(firm_size - 0x200 + firm_adr, 0x10000);
-
-        uint8_t *firm_chunk = (uint8_t *)malloc(buf_size);
-        readFlash(firm_chunk_adr, buf_size, firm_chunk);
-
-        encrypt_memcpy(firm_chunk + firm_adr, firm + 0x200, firm_size);
-
-        writeFlash(firm_chunk_adr, buf_size, firm_chunk);
-
-        free(firm_chunk);
-
-        return true;
-    }
-	
-	bool injectNtrBootType3(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size)
-    {
-		const uint32_t blowfish_and_firm_hdr_base = 0x1F0000;
-		const uint32_t blowfish_adr = 0xA000;
-        const uint32_t firm_hdr_adr = 0xFE00;
-        const uint32_t firm_adr = 0x80000;
-
-        logMessage(LOG_INFO, "R4iGold: Injecting ntrboot");
-        uint8_t *chunk0 = (uint8_t *)malloc(0x10000);
-        readFlash(blowfish_and_firm_hdr_base, 0x10000, chunk0);
-        encrypt_memcpy(chunk0 + blowfish_adr, blowfish_key, 0x1048);
-        encrypt_memcpy(chunk0 + firm_hdr_adr, firm, 0x200);
-        writeFlash(blowfish_and_firm_hdr_base, 0x10000, chunk0);
-        free(chunk0);
-
-        uint32_t buf_size = PAGE_ROUND_UP(firm_size - 0x200, 0x10000);
-        uint8_t *firm_chunk = (uint8_t *)malloc(buf_size);
-        readFlash(firm_adr, buf_size, firm_chunk);
-        encrypt_memcpy(firm_chunk, firm + 0x200, firm_size);
-        writeFlash(firm_adr, buf_size, firm_chunk);
-
-        free(firm_chunk);
-
-        return true;
+    void injectFlash(uint32_t chunk_addr, uint32_t chunk_length, uint32_t offset, uint8_t *src, uint32_t src_length, bool encrypt) {
+        uint8_t *chunk = (uint8_t *)malloc(chunk_length);
+        readFlash(chunk_addr, chunk_length, chunk);
+        if (encrypt) {
+            encrypt_memcpy(chunk + offset, src, src_length);
+        } else {
+            memcpy(chunk + offset, src, src_length);
+        }
+        writeFlash(chunk_addr, chunk_length, chunk);
+        free(chunk);
     }
 
 protected:
@@ -205,7 +132,8 @@ protected:
     static const uint8_t cmdEraseFlash[8];
     static const uint8_t cmdWriteByteFlash[8];
     static const uint8_t cmdWaitFlashBusy[8];
-    static const uint8_t cmdUnknown[8];
+    static const uint8_t cmdCardType[8];
+    static const r4i_flash_setting flashSettings[3];
 
     uint8_t m_r4i_type;
 
@@ -228,7 +156,7 @@ public:
             case 1:
                 return 0x400000;
             case 2:
-			case 3:
+            case 3:
                 return 0x200000;
         }
         return 0x0;
@@ -238,32 +166,40 @@ public:
     {
         logMessage(LOG_INFO, "R4iGold: Init");
         uint32_t hw_revision;
-        uint32_t hw_unknown;
+        uint32_t hw_type;
         sendCommand(cmdGetHWRevision, 4, (uint8_t*)&hw_revision, 0);
-        sendCommand(cmdUnknown, 4, (uint8_t*)&hw_unknown, 0);
+        sendCommand(cmdCardType, 4, (uint8_t*)&hw_type, 0);
         logMessage(LOG_NOTICE, "R4iGold: HW Revision = %08x", hw_revision);
-        logMessage(LOG_NOTICE, "R4iGold: HW C7 value = %08x", hw_unknown);
+        logMessage(LOG_NOTICE, "R4iGold: HW Type = %08x", hw_type);
 
         switch (hw_revision) {
+            // rev9-D
             case 0xA5A5A5A5:
             case 0xA6A6A6A6:
             case 0xA7A7A7A7:
-                m_r4i_type = 1; //rev9-D
+                m_r4i_type = 1;
                 return true;
             case 0:
-				if     (hw_unknown == 0xa79bca95 /* || hw_unknown == 0x??? */ )
-				{
-					m_r4i_type = 2; //rev4-5
-					return true;
-				}
-				else if(hw_unknown == 0xb7db5bb5 /* || hw_unknown == 0x??? */ )
-				{
-					m_r4i_type = 3; //rev6-7 maybe 8
-					return true;
-				}
-			
+                break;
+            default:
+                return false;
         }
-
+        switch (hw_type) {
+            // rev4-5
+            case 0xA79BCA95:
+            case 0x95A79BCA:
+            case 0xCA95A79B:
+            case 0x9BCA95A7:
+                m_r4i_type = 2;
+                return true;
+            // rev6-7 maybe 8
+            case 0xB7DB5BB5:
+            case 0xDB5BB5B7:
+            case 0x5BB5B7DB:
+            case 0xB5B7DB5B:
+                m_r4i_type = 3;
+                return true;
+        }
         return false;
     }
 
@@ -298,15 +234,26 @@ public:
 
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size)
     {
+
+        const r4i_flash_setting *set;
+
         switch (m_r4i_type) {
             case 1:
-                return injectNtrBootType1(blowfish_key, firm, firm_size);
             case 2:
-                return injectNtrBootType2(blowfish_key, firm, firm_size);
-			case 3:
-                return injectNtrBootType3(blowfish_key, firm, firm_size);
+            case 3:
+                set = &flashSettings[m_r4i_type - 1];
+                break;
+            default:
+                return false;
         }
-        return false;
+
+        logMessage(LOG_INFO, "R4iGold: Injecting ntrboot");
+        injectFlash(set->blowfish_chunk_adr, 0x10000, set->blowfish_offset, blowfish_key, 0x1048, set->encrypt_header);
+        injectFlash(set->firm_hdr_chunk_adr, 0x10000, set->firm_hdr_offset, firm, 0x200, set->encrypt_header);
+
+        uint32_t buf_size = PAGE_ROUND_UP(firm_size - 0x200 + set->firm_offset, 0x10000);
+        injectFlash(set->firm_chunk_adr, buf_size, set->firm_offset, firm + 0x200, firm_size, true);
+        return true;
     }
 };
 
@@ -315,7 +262,42 @@ const uint8_t R4i_Gold_3DS::cmdReadFlash[8] = {0xA5, 0x00, 0x00, 0x00, 0x00, 0x5
 const uint8_t R4i_Gold_3DS::cmdEraseFlash[8] = {0xDA, 0x00, 0x00, 0x00, 0x00, 0xA5, 0x00, 0x00};
 const uint8_t R4i_Gold_3DS::cmdWriteByteFlash[8] = {0xDA, 0x00, 0x00, 0x00, 0x00, 0x5A, 0x00, 0x00};
 const uint8_t R4i_Gold_3DS::cmdWaitFlashBusy[8] = {0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-const uint8_t R4i_Gold_3DS::cmdUnknown[8] = {0xC7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t R4i_Gold_3DS::cmdCardType[8] = {0xC7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+// FIXME: `warning: ISO C++ does not allow C99 designated initializers [-Wpedantic]`
+// C++20 will support designated initializer but current c++ not supported this.
+const r4i_flash_setting R4i_Gold_3DS::flashSettings[3] = {
+    {
+        .blowfish_chunk_adr = 0x000000,
+        .blowfish_offset    = 0x000000,
+        .firm_hdr_chunk_adr = 0x000000,
+        .firm_hdr_offset    = 0x00EE00,
+        .firm_chunk_adr     = 0x080000,
+        .firm_offset        = 0x000000,
+        .encrypt_header     = true,
+    },
+    {
+        .blowfish_chunk_adr = 0x000000,
+        .blowfish_offset    = 0x000000,
+        //this is overall bootloader address 0x1FFE00
+        .firm_hdr_chunk_adr = 0x1F0000,
+        .firm_hdr_offset    = 0x00FE00,
+        // overall bootloader addr 0x82200*
+        // (*writing directly to this addr was destroying bootloader data)
+        .firm_chunk_adr     = 0x080000,
+        .firm_offset        = 0x002200,
+        .encrypt_header     = false,
+    },
+    {
+        .blowfish_chunk_adr = 0x1F0000,
+        .blowfish_offset    = 0x00A000,
+        .firm_hdr_chunk_adr = 0x1F0000,
+        .firm_hdr_offset    = 0x00FE00,
+        .firm_chunk_adr     = 0x080000,
+        .firm_offset        = 0x000000,
+        .encrypt_header     = true,
+    },
+};
 
 R4i_Gold_3DS r4i_gold_3ds;
 }
