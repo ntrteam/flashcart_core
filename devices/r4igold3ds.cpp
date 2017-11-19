@@ -1,4 +1,4 @@
-#include "device.h"
+#include "../device.h"
 
 #include <cstring>
 #include <algorithm>
