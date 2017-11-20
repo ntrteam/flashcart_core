@@ -14,6 +14,7 @@ using platform::showProgress;
 class R4SDHC_DualCore : Flashcart {
 private:
     static const uint8_t cmdGetSWRev[8];
+    static const uint8_t cmdReadFlash[8];
     static const uint8_t cmdEraseFlash[8];
     static const uint8_t cmdWriteByteFlash[8];
     static const uint8_t cmdWaitFlashBusy[8];
@@ -24,30 +25,43 @@ private:
 
     uint8_t decrypt(uint8_t enc) {
         uint8_t dec = 0;
-        enc ^= 0x98;
-        if (enc & BIT(0)) dec |= BIT(6);
-        if (enc & BIT(1)) dec |= BIT(2);
-        if (enc & BIT(2)) dec |= BIT(7);
+        if (enc & BIT(0)) dec |= BIT(5);
+        if (enc & BIT(1)) dec |= BIT(4);
+        if (enc & BIT(2)) dec |= BIT(1);
         if (enc & BIT(3)) dec |= BIT(3);
-        if (enc & BIT(4)) dec |= BIT(1);
-        if (enc & BIT(5)) dec |= BIT(0);
-        if (enc & BIT(6)) dec |= BIT(4);
-        if (enc & BIT(7)) dec |= BIT(5);
+        if (enc & BIT(4)) dec |= BIT(6);
+        if (enc & BIT(5)) dec |= BIT(7);
+        if (enc & BIT(6)) dec |= BIT(0);
+        if (enc & BIT(7)) dec |= BIT(2);
+        dec ^= 0x98;
         return dec;
     }
 
     uint8_t encrypt(uint8_t dec) {
         uint8_t enc = 0;
-        if (dec & BIT(0)) enc |= BIT(5);
-        if (dec & BIT(1)) enc |= BIT(4);
-        if (dec & BIT(2)) enc |= BIT(1);
+        dec ^= 0x98;
+        if (dec & BIT(0)) enc |= BIT(6);
+        if (dec & BIT(1)) enc |= BIT(2);
+        if (dec & BIT(2)) enc |= BIT(7);
         if (dec & BIT(3)) enc |= BIT(3);
-        if (dec & BIT(4)) enc |= BIT(6);
-        if (dec & BIT(5)) enc |= BIT(7);
-        if (dec & BIT(6)) enc |= BIT(0);
-        if (dec & BIT(7)) enc |= BIT(2);
-        enc ^= 0x98;
+        if (dec & BIT(4)) enc |= BIT(1);
+        if (dec & BIT(5)) enc |= BIT(0);
+        if (dec & BIT(6)) enc |= BIT(4);
+        if (dec & BIT(7)) enc |= BIT(5);
         return enc;
+    }
+
+    void read_cmd(uint32_t address, uint8_t *resp)
+    {
+      uint8_t cmdbuf[8];
+
+      memcpy(cmdbuf, cmdReadFlash, 8);
+
+      cmdbuf[2] = (address >> 16) & 0x1F;
+      cmdbuf[3] = (address >>  8) & 0xFF;
+      cmdbuf[4] = (address >>  0) & 0xFF;
+
+      sendCommand(cmdbuf, 0x200, resp, 80);
     }
 
     void wait_flash_busy(void)
@@ -69,7 +83,7 @@ private:
         cmdbuf[2] = (address >>  8) & 0xFF;
         cmdbuf[3] = (address >>  0) & 0xFF;
 
-        sendCommand(cmdbuf, 0, nullptr, 80); // TODO: find IDB and get the latencies.
+        sendCommand(cmdbuf, 0, nullptr, 80);
         wait_flash_busy();
     }
 
@@ -83,35 +97,53 @@ private:
         cmdbuf[4] = value;
 
         sendCommand(cmdbuf, 0, nullptr, 80);
+        wait_flash_busy();
+    }
+
+    bool trySecureInit(BlowfishKey key) {
+        if (platform::CAN_RESET && !ntrcard::init()) {
+            logMessage(LOG_ERR, "R4SDHC: trySecureInit: ntrcard::init failed");
+            return false;
+        } else if (ntrcard::state.status != ntrcard::Status::RAW) {
+            logMessage(LOG_ERR, "R4SDHC: trySecureInit: status (%d) not RAW and cannot reset",
+                static_cast<uint32_t>(ntrcard::state.status));
+            return false;
+        }
+        ntrcard::state.hdr_key1_romcnt = ntrcard::state.key1_romcnt = 0x1808F8;
+        ntrcard::state.hdr_key2_romcnt = ntrcard::state.key2_romcnt = 0x416017;
+        ntrcard::state.key2_seed = 0;
+        if (!ntrcard::initKey1(key)) {
+            logMessage(LOG_ERR, "R4SDHC: trySecureInit: init key1 (key = %d) failed", static_cast<int>(key));
+            return false;
+        }
+        if (!ntrcard::initKey2()) {
+            logMessage(LOG_ERR, "R4SDHC: trySecureInit: init key2 failed");
+            return false;
+        }
+
+        return true;
     }
 
 public:
     R4SDHC_DualCore() : Flashcart("R4 SDHC Dual Core", 0x200000) { }
 
+    const char* getAuthor() {
+        return
+                    "handsomematt, Normmatt, Kitlith,\n"
+            "        stuckpixel, angelsl, et al.";
+    }
+
     bool initialize() {
         logMessage(LOG_INFO, "R4SDHC: Init");
 
-        if(!ntrcard::init())
+        if (!trySecureInit(BlowfishKey::NTR) && !trySecureInit(BlowfishKey::B9RETAIL) && !trySecureInit(BlowfishKey::B9DEV))
         {
-          logMessage(LOG_ERR, "R4SDHC: Init failed!");
-          return false;
-        }
-
-        if(!ntrcard::initKey1(BlowfishKey::NTR))
-        {
-          logMessage(LOG_ERR, "R4SDHC: Key1 init failed!");
-          return false;
-        }
-
-        if(!ntrcard::initKey2())
-        {
-          logMessage(LOG_ERR, "R4SDHC: Key2 init failed!");
+          logMessage(LOG_ERR, "R4SDHC: Secure init failed!");
           return false;
         }
 
         uint8_t resp1[0x200];
         uint8_t resp2[0x200];
-
 
         //this is how the updater does it. Not sure exactly what it's for
         do {
@@ -138,17 +170,21 @@ public:
           sendCommand(cmdUnkB7, 0x200, resp2, 80);
         } while(std::memcmp(resp1, resp2, 0x200));
 
-        logMessage(LOG_WARN, "R4SDHC: We have no way of detecting cart!");
+        logMessage(LOG_WARN, "R4SDHC: We have no way of detecting this cart!");
+
         return true; // We have no way of checking yet.
     }
     void shutdown() {
         logMessage(LOG_INFO, "R4SDHC: Shutdown");
     }
 
-    // We don't have a read command...
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
-        logMessage(LOG_ERR, "R4SDHC: readFlash not implemented!");
-        return false;
+        for(uint32_t addr = 0; addr < length; addr += 0x200)
+        {
+          read_cmd(addr, buffer + addr);
+          showProgress(addr, length, "Reading");
+        }
+        return true;
     }
 
     bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {
@@ -171,11 +207,12 @@ public:
     }
 };
 
-const uint8_t R4SDHC_DualCore::cmdUnkB7[8] = {0xB7, 0x00, 0x00, 0x00, 0x00, 0x15, 0x00, 0x00}; //possibly read flash?
+const uint8_t R4SDHC_DualCore::cmdUnkB7[8] = {0xB7, 0x00, 0x00, 0x00, 0x00, 0x15, 0x00, 0x00}; //reads flash at offset 0x40000
 const uint8_t R4SDHC_DualCore::cmdUnkD0AA[8] = {0xD0, 0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 const uint8_t R4SDHC_DualCore::cmdUnkD0[8] = {0xD0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 const uint8_t R4SDHC_DualCore::cmdGetSWRev[8] = {0xC5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t R4SDHC_DualCore::cmdReadFlash[8] = {0xB7, 0x00, 0x00, 0x00, 0x00, 0x22, 0x00, 0x00};
 const uint8_t R4SDHC_DualCore::cmdEraseFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00};
 const uint8_t R4SDHC_DualCore::cmdWriteByteFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00};
 const uint8_t R4SDHC_DualCore::cmdWaitFlashBusy[8] = {0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
