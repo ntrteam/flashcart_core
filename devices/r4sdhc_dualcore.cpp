@@ -79,9 +79,9 @@ private:
         uint8_t cmdbuf[8];
         logMessage(LOG_DEBUG, "R4SDHC: erase(0x%08x)", address);
         memcpy(cmdbuf, cmdEraseFlash, 8);
-        cmdbuf[1] = (address >> 16) & 0xFF;
-        cmdbuf[2] = (address >>  8) & 0xFF;
-        cmdbuf[3] = (address >>  0) & 0xFF;
+        cmdbuf[2] = (address >> 16) & 0xFF;
+        cmdbuf[3] = (address >>  8) & 0xFF;
+        cmdbuf[4] = (address >>  0) & 0xFF;
 
         sendCommand(cmdbuf, 0, nullptr, 80);
         wait_flash_busy();
@@ -179,10 +179,15 @@ public:
     }
 
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
+        logMessage(LOG_INFO, "R4SDHC: readFlash(addr=0x%08x, size=0x%x)", address, length);
         for(uint32_t addr = 0; addr < length; addr += 0x200)
         {
-          read_cmd(addr, buffer + addr);
+          read_cmd(addr + address, buffer + addr);
           showProgress(addr, length, "Reading");
+          for(int i = 0; i < 0x200; i++)
+            /*the read command encrypts the raw flash contents before returning it you*/
+            /*so to get the raw flash contents, decrypt the returned values*/
+            *(buffer + addr + i) = decrypt(*(buffer + addr + i));
         }
         return true;
     }
@@ -190,10 +195,16 @@ public:
     bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {
         logMessage(LOG_INFO, "R4SDHC: writeFlash(addr=0x%08x, size=0x%x)", address, length);
         for (uint32_t addr=0; addr < length; addr+=0x10000)
+        {
             erase_cmd(address + addr);
+            showProgress(addr, length, "Erasing");
+        }
 
         for (uint32_t i=0; i < length; i++) {
-            write_cmd(address + i, buffer[i]);
+            /*the write command decrypts whatever you send it before actually writing to flash*/
+            /*so we encrypt whatever we send to be written*/
+            uint8_t byte = encrypt(buffer[i]);
+            write_cmd(address + i, byte);
             showProgress(i,length, "Writing");
         }
 
