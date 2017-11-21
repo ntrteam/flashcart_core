@@ -144,21 +144,21 @@ public:
           return false;
         }
 
-        uint8_t resp1[0x200];
-        uint8_t resp2[0x200];
+        uint32_t resp1[0x200/4];
+        uint32_t resp2[0x200/4];
 
         //this is how the updater does it. Not sure exactly what it's for
         do {
           m_card->sendCommand(cmdUnkB7, resp1, 0x200, 80);
           m_card->sendCommand(cmdUnkB7, resp2, 0x200, 80);
-          logMessage(LOG_DEBUG, "resp1: 0x%08x, resp2: 0x%08x", *(uint32_t *)resp1, *(uint32_t *)resp2);
+          logMessage(LOG_DEBUG, "resp1: 0x%08x, resp2: 0x%08x", *resp1, *resp2);
         } while(std::memcmp(resp1, resp2, 0x200));
 
-        uint8_t sw_rev[4];
+        uint32_t sw_rev;
 
-        m_card->sendCommand(cmdGetSWRev, sw_rev, 4, 80);
+        m_card->sendCommand(cmdGetSWRev, &sw_rev, 4, 80);
 
-        logMessage(LOG_INFO, "R4SDHC: Current Software Revsion: %08x", *(uint32_t *)sw_rev);
+        logMessage(LOG_INFO, "R4SDHC: Current Software Revsion: %08x", sw_rev);
 
         m_card->sendCommand(cmdUnkD0AA, nullptr, 4, 80);
         m_card->sendCommand(cmdUnkD0AA, nullptr, 4, 80);
