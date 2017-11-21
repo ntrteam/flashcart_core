@@ -9,7 +9,7 @@ namespace flashcart_core {
 using platform::logMessage;
 using platform::showProgress;
 
-typedef struct {
+struct r4i_flash_setting {
     uint32_t blowfish_chunk_adr;
     uint32_t blowfish_offset;
     uint32_t firm_hdr_chunk_adr;
@@ -17,7 +17,7 @@ typedef struct {
     uint32_t firm_chunk_adr;
     uint32_t firm_offset;
     bool encrypt_header;
-} r4i_flash_setting;
+};
 
 class R4i_Gold_3DS : Flashcart {
 private:
@@ -263,38 +263,36 @@ const uint8_t R4i_Gold_3DS::cmdWriteByteFlash[8] = {0xDA, 0x00, 0x00, 0x00, 0x00
 const uint8_t R4i_Gold_3DS::cmdWaitFlashBusy[8] = {0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 const uint8_t R4i_Gold_3DS::cmdCardType[8] = {0xC7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-// FIXME: `warning: ISO C++ does not allow C99 designated initializers [-Wpedantic]`
-// C++20 will support designated initializer but current c++ not supported this.
 const r4i_flash_setting R4i_Gold_3DS::flashSettings[3] = {
     {
-        .blowfish_chunk_adr = 0x000000,
-        .blowfish_offset    = 0x000000,
-        .firm_hdr_chunk_adr = 0x000000,
-        .firm_hdr_offset    = 0x00EE00,
-        .firm_chunk_adr     = 0x080000,
-        .firm_offset        = 0x000000,
-        .encrypt_header     = true,
+        /* .blowfish_chunk_adr = */ 0x000000,
+        /* .blowfish_offset    = */ 0x000000,
+        /* .firm_hdr_chunk_adr = */ 0x000000,
+        /* .firm_hdr_offset    = */ 0x00EE00,
+        /* .firm_chunk_adr     = */ 0x080000,
+        /* .firm_offset        = */ 0x000000,
+        /* .encrypt_header     = */ true
     },
     {
-        .blowfish_chunk_adr = 0x000000,
-        .blowfish_offset    = 0x000000,
+        /* .blowfish_chunk_adr = */ 0x000000,
+        /* .blowfish_offset    = */ 0x000000,
         //this is overall bootloader address 0x1FFE00
-        .firm_hdr_chunk_adr = 0x1F0000,
-        .firm_hdr_offset    = 0x00FE00,
+        /* .firm_hdr_chunk_adr = */ 0x1F0000,
+        /* .firm_hdr_offset    = */ 0x00FE00,
         // overall bootloader addr 0x82200*
         // (*writing directly to this addr was destroying bootloader data)
-        .firm_chunk_adr     = 0x080000,
-        .firm_offset        = 0x002200,
-        .encrypt_header     = false,
+        /* .firm_chunk_adr     = */ 0x080000,
+        /* .firm_offset        = */ 0x002200,
+        /* .encrypt_header     = */ false,
     },
     {
-        .blowfish_chunk_adr = 0x1F0000,
-        .blowfish_offset    = 0x00A000,
-        .firm_hdr_chunk_adr = 0x1F0000,
-        .firm_hdr_offset    = 0x00FE00,
-        .firm_chunk_adr     = 0x080000,
-        .firm_offset        = 0x000000,
-        .encrypt_header     = true,
+        /* .blowfish_chunk_adr = */ 0x1F0000,
+        /* .blowfish_offset    = */ 0x00A000,
+        /* .firm_hdr_chunk_adr = */ 0x1F0000,
+        /* .firm_hdr_offset    = */ 0x00FE00,
+        /* .firm_chunk_adr     = */ 0x080000,
+        /* .firm_offset        = */ 0x000000,
+        /* .encrypt_header     = */ true,
     },
 };
 
