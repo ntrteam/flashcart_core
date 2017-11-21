@@ -4,7 +4,6 @@
 #include <cstring>
 
 namespace flashcart_core {
-using ntrcard::sendCommand;
 using platform::logMessage;
 using platform::showProgress;
 
@@ -34,13 +33,13 @@ protected:
             // I've been trying to get down to the bottom of this delay for a while
             // hopefully soon it will no longer be needed.
             // ioDelay( 16 * 10 );
-            sendCommand(ak2i_cmdWaitFlashBusy, 4, (uint8_t *)&state, 4);
+            m_card->sendCommand(ak2i_cmdWaitFlashBusy, &state, 4, 4);
             logMessage(LOG_DEBUG, "AK2i: waitFlashBusy = 0x%08x", state);
         } while ((state & 1) != 0);
     }
 
     void a2ki_read(uint8_t *outbuf, uint32_t address) {
-        uint8_t cmdbuf[8];
+        uint8_t cmdbuf[8] = {0};
         logMessage(LOG_DEBUG, "AK2i: read(0x%08x)", address);
         memcpy(cmdbuf, ak2i_cmdReadFlash, 8);
         cmdbuf[1] = (address >> 24) & 0xFF;
@@ -48,12 +47,12 @@ protected:
         cmdbuf[3] = (address >>  8) & 0xFF;
         cmdbuf[4] = (address >>  0) & 0xFF;
 
-        sendCommand(cmdbuf, 0x200, outbuf, 2);
+        m_card->sendCommand(cmdbuf, outbuf, 0x200, 2);
         // a2ki_wait_flash_busy();
     }
 
     void a2ki_erase(uint32_t address) {
-        uint8_t cmdbuf[8];
+        uint8_t cmdbuf[8] = {0};
 
         logMessage(LOG_DEBUG, "AK2i: erase(0x%08x)", address);
         if (m_ak2i_hwrevision == 0x44444444)
@@ -70,12 +69,12 @@ protected:
         cmdbuf[2] = (address >>  8) & 0xFF;
         cmdbuf[3] = (address >>  0) & 0xFF;
 
-        sendCommand(cmdbuf, 0, nullptr, (m_ak2i_hwrevision == 0x81818181) ? 20 : 0 );
+        m_card->sendCommand(cmdbuf, nullptr, 0, (m_ak2i_hwrevision == 0x81818181) ? 20 : 0 );
         a2ki_wait_flash_busy();
     }
 
     void a2ki_writebyte(uint32_t address, uint8_t value) {
-        uint8_t cmdbuf[8];
+        uint8_t cmdbuf[8] = {0};
 
         logMessage(LOG_DEBUG, "AK2i: write(0x%08x) = 0x%02x", address, value);
         if (m_ak2i_hwrevision == 0x44444444)
@@ -93,7 +92,7 @@ protected:
         cmdbuf[3] = (address >>  0) & 0xFF;
         cmdbuf[4] = value;
 
-        sendCommand(cmdbuf, 0, nullptr, 20);
+        m_card->sendCommand(cmdbuf, nullptr, 0, 20);
         a2ki_wait_flash_busy();
     }
 
@@ -112,24 +111,23 @@ public:
 
     bool initialize()
     {
-        uint8_t garbage[4];
         logMessage(LOG_INFO, "AK2i: Init");
-        sendCommand(ak2i_cmdGetHWRevision, 4, (uint8_t*)&m_ak2i_hwrevision, 0);
+        m_card->sendCommand(ak2i_cmdGetHWRevision, &m_ak2i_hwrevision, 4, 0);
         logMessage(LOG_NOTICE, "AK2i: HW Revision = %08x", m_ak2i_hwrevision);
 
         if (m_ak2i_hwrevision == 0x44444444)
         {
-            sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr, 0);
-            sendCommand(ak2i_cmdActiveFatMap, 4, garbage, 0);
-            sendCommand(ak2i_cmdUnlockASIC, 0, nullptr, 0);
+            m_card->sendCommand(ak2i_cmdSetMapTableAddress, nullptr, 0, 0);
+            m_card->sendCommand(ak2i_cmdActiveFatMap, nullptr, 4, 0);
+            m_card->sendCommand(ak2i_cmdUnlockASIC, nullptr, 0, 0);
         }
         else if (m_ak2i_hwrevision == 0x81818181)
         {
-            sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr, 20);
-            sendCommand(ak2i_cmdActiveFatMap, 4, garbage, 0);
-            sendCommand(ak2i_cmdUnlockFlash, 0, nullptr, 0);
-            sendCommand(ak2i_cmdUnlockASIC, 0, nullptr, 0);
-            sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr, 0);
+            m_card->sendCommand(ak2i_cmdSetFlash1681_81, nullptr, 0, 20);
+            m_card->sendCommand(ak2i_cmdActiveFatMap, nullptr, 4, 0);
+            m_card->sendCommand(ak2i_cmdUnlockFlash, nullptr, 0, 0);
+            m_card->sendCommand(ak2i_cmdUnlockASIC, nullptr, 0, 0);
+            m_card->sendCommand(ak2i_cmdSetMapTableAddress, nullptr, 0, 0);
         } else {
             return false;
         }
@@ -139,20 +137,19 @@ public:
 
     void shutdown()
     {
-        uint8_t garbage[4];
         logMessage(LOG_INFO, "AK2i: Shutdown");
-        sendCommand(ak2i_cmdLockFlash, 0, nullptr, 0);
-        sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr, 0);
-        sendCommand(ak2i_cmdActiveFatMap, 4, garbage, 4);
+        m_card->sendCommand(ak2i_cmdLockFlash, nullptr, 0, 0);
+        m_card->sendCommand(ak2i_cmdSetMapTableAddress, nullptr, 0, 0);
+        m_card->sendCommand(ak2i_cmdActiveFatMap, nullptr, 4, 4);
     }
 
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer)
     {
         logMessage(LOG_INFO, "AK2i: readFlash(addr=0x%08x, size=0x%x)");
-        sendCommand(ak2i_cmdLockFlash, 0, nullptr, 0);
+        m_card->sendCommand(ak2i_cmdLockFlash, nullptr, 0, 0);
 
-        if (m_ak2i_hwrevision == 0x81818181) sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr, 20);
-        sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr, 0);
+        if (m_ak2i_hwrevision == 0x81818181) m_card->sendCommand(ak2i_cmdSetFlash1681_81, nullptr, 0, 20);
+        m_card->sendCommand(ak2i_cmdSetMapTableAddress, nullptr, 0, 0);
 
         for (uint32_t curpos=0; curpos < length; curpos+=0x200) {
             a2ki_read(buffer + curpos, address + curpos);
@@ -165,11 +162,11 @@ public:
     bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
     {
         logMessage(LOG_INFO, "AK2i: writeFlash(addr=0x%08x, size=0x%x)");
-        sendCommand(ak2i_cmdUnlockFlash, 0, nullptr, 0);
-        sendCommand(ak2i_cmdUnlockASIC, 0, nullptr, 0);
+        m_card->sendCommand(ak2i_cmdUnlockFlash, nullptr, 0, 0);
+        m_card->sendCommand(ak2i_cmdUnlockASIC, nullptr, 0, 0);
 
-        if (m_ak2i_hwrevision == 0x81818181) sendCommand(ak2i_cmdSetFlash1681_81, 0, nullptr, 20);
-        sendCommand(ak2i_cmdSetMapTableAddress, 0, nullptr, 0);
+        if (m_ak2i_hwrevision == 0x81818181) m_card->sendCommand(ak2i_cmdSetFlash1681_81, nullptr, 0, 20);
+        m_card->sendCommand(ak2i_cmdSetMapTableAddress, nullptr, 0, 0);
 
         for (uint32_t addr=0; addr < length; addr+=page_size)
         {

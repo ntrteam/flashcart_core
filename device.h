@@ -4,7 +4,8 @@
 #include <cstddef>
 #include <vector>
 
-#include "ntrcard.h"
+#include <ncgcpp/ntrcard.h>
+
 #include "platform.h"
 
 using std::uint8_t;
@@ -21,7 +22,10 @@ class Flashcart {
 public:
     Flashcart(const char* name, const size_t max_length);
 
-    virtual bool initialize() = 0;
+    inline bool initialize(ncgc::NTRCard *card) {
+        m_card = card;
+        return initialize();
+    }
     virtual void shutdown() = 0;
 
     virtual bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) = 0;
@@ -36,6 +40,9 @@ public:
 protected:
     const char* m_name;
     const size_t m_max_length;
+    ncgc::NTRCard *m_card;
+
+    virtual bool initialize() = 0;
 };
 
 extern std::vector<Flashcart*> *flashcart_list;

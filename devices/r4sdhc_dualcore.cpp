@@ -6,8 +6,6 @@
 #define BIT(n) (1 << (n))
 
 namespace flashcart_core {
-using ntrcard::sendCommand;
-using ntrcard::BlowfishKey;
 using platform::logMessage;
 using platform::showProgress;
 
@@ -61,7 +59,7 @@ private:
       cmdbuf[3] = (address >>  8) & 0xFF;
       cmdbuf[4] = (address >>  0) & 0xFF;
 
-      sendCommand(cmdbuf, 0x200, resp, 80);
+      m_card->sendCommand(cmdbuf, resp, 0x200, 80);
     }
 
     void wait_flash_busy(void)
@@ -71,7 +69,7 @@ private:
       memcpy(cmdbuf, cmdWaitFlashBusy, 8);
 
       do {
-        sendCommand(cmdbuf, 4, (uint8_t *)&resp, 80);
+        m_card->sendCommand(cmdbuf, (uint8_t *)&resp, 4, 80);
       } while(resp);
     }
 
@@ -83,7 +81,7 @@ private:
         cmdbuf[3] = (address >>  8) & 0xFF;
         cmdbuf[4] = (address >>  0) & 0xFF;
 
-        sendCommand(cmdbuf, 0, nullptr, 80);
+        m_card->sendCommand(cmdbuf, nullptr, 0, 80);
         wait_flash_busy();
     }
 
@@ -96,28 +94,32 @@ private:
         cmdbuf[3] = (address >>  0) & 0xFF;
         cmdbuf[4] = value;
 
-        sendCommand(cmdbuf, 0, nullptr, 80);
+        m_card->sendCommand(cmdbuf, nullptr, 0, 80);
         wait_flash_busy();
     }
 
     bool trySecureInit(BlowfishKey key) {
-        if (platform::CAN_RESET && !ntrcard::init()) {
+        ncgc::Err err = m_card->init();
+        if (err && !err.unsupported()) {
             logMessage(LOG_ERR, "R4SDHC: trySecureInit: ntrcard::init failed");
             return false;
-        } else if (ntrcard::state.status != ntrcard::Status::RAW) {
+        } else if (m_card->state() != ncgc::NTRState::Raw) {
             logMessage(LOG_ERR, "R4SDHC: trySecureInit: status (%d) not RAW and cannot reset",
-                static_cast<uint32_t>(ntrcard::state.status));
+                static_cast<uint32_t>(m_card->state()));
             return false;
         }
-        ntrcard::state.hdr_key1_romcnt = ntrcard::state.key1_romcnt = 0x1808F8;
-        ntrcard::state.hdr_key2_romcnt = ntrcard::state.key2_romcnt = 0x416017;
-        ntrcard::state.key2_seed = 0;
-        if (!ntrcard::initKey1(key)) {
-            logMessage(LOG_ERR, "R4SDHC: trySecureInit: init key1 (key = %d) failed", static_cast<int>(key));
+
+        ncgc::c::ncgc_ncard_t& state = m_card->rawState();
+        state.hdr.key1_romcnt = state.key1.romcnt = 0x1808F8;
+        state.hdr.key2_romcnt = state.key2.romcnt = 0x416017;
+        state.key2.seed_byte = 0;
+        m_card->setBlowfishState(platform::getBlowfishKey(key), key != BlowfishKey::NTR);
+        if ((err = m_card->beginKey1())) {
+            logMessage(LOG_ERR, "R4SDHC: trySecureInit: init key1 (key = %d) failed: %d", static_cast<int>(key), err.errNo());
             return false;
         }
-        if (!ntrcard::initKey2()) {
-            logMessage(LOG_ERR, "R4SDHC: trySecureInit: init key2 failed");
+        if ((err = m_card->beginKey2())) {
+            logMessage(LOG_ERR, "R4SDHC: trySecureInit: init key2 failed: %d", err.errNo());
             return false;
         }
 
@@ -136,7 +138,7 @@ public:
     bool initialize() {
         logMessage(LOG_INFO, "R4SDHC: Init");
 
-        if (!trySecureInit(BlowfishKey::NTR) && !trySecureInit(BlowfishKey::B9RETAIL) && !trySecureInit(BlowfishKey::B9DEV))
+        if (!trySecureInit(BlowfishKey::NTR) && !trySecureInit(BlowfishKey::B9Retail) && !trySecureInit(BlowfishKey::B9Dev))
         {
           logMessage(LOG_ERR, "R4SDHC: Secure init failed!");
           return false;
@@ -147,27 +149,25 @@ public:
 
         //this is how the updater does it. Not sure exactly what it's for
         do {
-          sendCommand(cmdUnkB7, 0x200, resp1, 80);
-          sendCommand(cmdUnkB7, 0x200, resp2, 80);
+          m_card->sendCommand(cmdUnkB7, resp1, 0x200, 80);
+          m_card->sendCommand(cmdUnkB7, resp2, 0x200, 80);
           logMessage(LOG_DEBUG, "resp1: 0x%08x, resp2: 0x%08x", *(uint32_t *)resp1, *(uint32_t *)resp2);
         } while(std::memcmp(resp1, resp2, 0x200));
 
         uint8_t sw_rev[4];
 
-        sendCommand(cmdGetSWRev, 4, sw_rev, 80);
+        m_card->sendCommand(cmdGetSWRev, sw_rev, 4, 80);
 
         logMessage(LOG_INFO, "R4SDHC: Current Software Revsion: %08x", *(uint32_t *)sw_rev);
 
-        uint8_t dummy[4];
-
-        sendCommand(cmdUnkD0AA, 4, dummy, 80);
-        sendCommand(cmdUnkD0AA, 4, dummy, 80);
-        sendCommand(cmdUnkD0, 0, nullptr, 80);
-        sendCommand(cmdUnkD0AA, 4, dummy, 80);
+        m_card->sendCommand(cmdUnkD0AA, nullptr, 4, 80);
+        m_card->sendCommand(cmdUnkD0AA, nullptr, 4, 80);
+        m_card->sendCommand(cmdUnkD0, nullptr, 0, 80);
+        m_card->sendCommand(cmdUnkD0AA, nullptr, 4, 80);
 
         do {
-          sendCommand(cmdUnkB7, 0x200, resp1, 80);
-          sendCommand(cmdUnkB7, 0x200, resp2, 80);
+          m_card->sendCommand(cmdUnkB7, resp1, 0x200, 80);
+          m_card->sendCommand(cmdUnkB7, resp2, 0x200, 80);
         } while(std::memcmp(resp1, resp2, 0x200));
 
         logMessage(LOG_WARN, "R4SDHC: We have no way of detecting this cart!");
