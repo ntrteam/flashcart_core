@@ -145,7 +145,7 @@ public:
 
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer)
     {
-        logMessage(LOG_INFO, "AK2i: readFlash(addr=0x%08x, size=0x%x)");
+        logMessage(LOG_INFO, "AK2i: readFlash(addr=0x%08x, size=0x%x)", address, length);
         m_card->sendCommand(ak2i_cmdLockFlash, nullptr, 0, 0);
 
         if (m_ak2i_hwrevision == 0x81818181) m_card->sendCommand(ak2i_cmdSetFlash1681_81, nullptr, 0, 20);
@@ -161,7 +161,7 @@ public:
 
     bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
     {
-        logMessage(LOG_INFO, "AK2i: writeFlash(addr=0x%08x, size=0x%x)");
+        logMessage(LOG_INFO, "AK2i: writeFlash(addr=0x%08x, size=0x%x)", address, length);
         m_card->sendCommand(ak2i_cmdUnlockFlash, nullptr, 0, 0);
         m_card->sendCommand(ak2i_cmdUnlockASIC, nullptr, 0, 0);
 
