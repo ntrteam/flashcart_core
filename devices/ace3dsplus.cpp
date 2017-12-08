@@ -1,6 +1,9 @@
+#include <cstring>
+
 #include <ncgcpp/ntrcard.h>
 
 #include "../device.h"
+#include "../flash_util.h"
 
 namespace flashcart_core {
 using platform::logMessage;
@@ -189,7 +192,7 @@ class Ace3DSPlus : Flashcart {
         return true;
     }
 
-    bool spiRead(const uint32_t address, void *const buf, const size_t size) {
+    bool spiRead(const uint32_t address, const uint32_t size, void *const buf) {
         uint8_t cmd[] = { 3, 0, 0, 0 };
         cmd[1] = (address & 0xFF0000) >> 16;
         cmd[2] = (address & 0xFF00) >> 8;
@@ -201,6 +204,74 @@ class Ace3DSPlus : Flashcart {
             return false;
         }
         return true;
+    }
+
+    bool spiWriteEnable() {
+        static const uint8_t cmd[] = { 0x6 };
+        ncgc::Err r = m_card->sendSpi(cmd, 1, nullptr, 0);
+        if (r) {
+            logMessage(LOG_ERR, "Ace3DSPlus: spiWriteEnable failed: %d", r.errNo());
+            return false;
+        }
+        return true;
+    }
+
+    bool spiWaitWrite() {
+        static const uint8_t rdsr[] = { 0x5 };
+        uint8_t sr = 1;
+        do {
+            ncgc::Err r = m_card->sendSpi(rdsr, 1, &sr, 1);
+            if (r) {
+                logMessage(LOG_ERR, "Ace3DSPlus: spiWaitWrite failed: %d", r.errNo());
+                return false;
+            }
+        } while (sr & 1);
+
+        return true;
+    }
+
+    bool spiSectorErase(uint32_t address) {
+        uint8_t cmd[] = { 0x20, 0, 0, 0 };
+        cmd[1] = (address & 0xFF0000) >> 16;
+        cmd[2] = (address & 0xFF00) >> 8;
+        cmd[3] = address & 0xFF;
+
+        ncgc::Err r = m_card->sendSpi(cmd, 4, nullptr, 0);
+        if (r) {
+            logMessage(LOG_ERR, "Ace3DSPlus: spiSectorErase failed: %d", r.errNo());
+            return false;
+        }
+
+        return true;
+    }
+
+    bool spiPageProgram(uint32_t address, const void *src) {
+        uint8_t cmd[256 + 4] = { 0 };
+        cmd[0] = 2;
+        cmd[1] = (address & 0xFF0000) >> 16;
+        cmd[2] = (address & 0xFF00) >> 8;
+        cmd[3] = address & 0xFF;
+        std::memcpy(cmd + 4, src, 256);
+
+        ncgc::Err r = m_card->sendSpi(cmd, sizeof(cmd), nullptr, 0);
+        if (r) {
+            logMessage(LOG_ERR, "Ace3DSPlus: spiPageProgram failed: %d", r.errNo());
+            return false;
+        }
+
+        return true;
+    }
+
+    bool flashUtilErase(std::uint32_t addr) {
+        return spiWriteEnable()
+            && spiSectorErase(addr)
+            && spiWaitWrite();
+    }
+
+    bool flashUtilPageProgram(std::uint32_t addr, const void *src) {
+        return spiWriteEnable()
+            && spiPageProgram(addr, src)
+            && spiWaitWrite();
     }
 
     bool tryBlowfishKey(BlowfishKey key) {
@@ -291,6 +362,8 @@ class Ace3DSPlus : Flashcart {
         return false;
     }
 
+    using Util = FlashUtil<Ace3DSPlus, 0, &Ace3DSPlus::spiRead, 12, &Ace3DSPlus::flashUtilErase, 8, &Ace3DSPlus::flashUtilPageProgram>;
+
 public:
     Ace3DSPlus() : Flashcart("Ace3DS Plus", 0x200000) { }
 
@@ -379,32 +452,23 @@ public:
     void shutdown() {}
 
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
-        const uint32_t total_length = length, start_address = address;
-
-        while (length >= 0x1000) {
-            if (!spiRead(address, buffer, 0x1000)) {
-                return false;
-            }
-
-            address += 0x1000;
-            buffer += 0x1000;
-            length -= 0x1000;
-
-            showProgress(address - start_address, total_length, "Reading flash");
-        }
-
-        if (length > 0) {
-            if (!spiRead(address, buffer, length)) {
-                return false;
-            }
-            showProgress(1, 1, "Reading flash");
-        }
-        return true;
+        return Util::read(this, address, length, buffer, true);
     }
 
-    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) { return false; }
+    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {
+        return Util::write(this, address, length, buffer, true);
+    }
 
-    bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) { return false; }
+    bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) {
+        uint8_t sp[0x1048];
+        std::memcpy(sp, blowfish_key + 0x48, 0x1000);
+        for (int i = 0; i < 0x12; ++i) {
+            std::memcpy(sp + 0x1000 + (0x11 - i)*4, blowfish_key + i*4, 4);
+        }
+
+        return Util::write(this, 0x8000, 0x1048, sp, true, "Writing Blowfish key")
+            && Util::write(this, 0xFE00, firm_size, firm, true, "Writing FIRM");
+    }
 };
 
 Ace3DSPlus ace3DSplus;
