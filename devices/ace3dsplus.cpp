@@ -460,6 +460,11 @@ public:
     }
 
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) {
+        if (firm_size > 826 * 1024) {
+            logMessage(LOG_NOTICE, "FIRM too big; maximum size is 826 KiB");
+            return false;
+        }
+
         uint8_t sp[0x1048];
         std::memcpy(sp, blowfish_key + 0x48, 0x1000);
         for (int i = 0; i < 0x12; ++i) {
