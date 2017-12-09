@@ -396,14 +396,8 @@ public:
         }
 
         if (resp == 0 || resp == 0xFFFFFFFF) {
-            if ((err = m_card->readData(0x11B200, nullptr, 0x11BC00 - 0x11B200))
-                || (err = m_card->readData(0x8000, nullptr, 0x41800 - 0x8000))
-                || (err = m_card->readData(0xE6E00, nullptr, 0x10F600 - 0xE6E00))
-                || (err = m_card->readData(0x117400, nullptr, 0x11B200 - 0x117400))
-                || (err = m_card->readData(0x10F600, nullptr, 0x117400 - 0x10F600))
-                || (err = m_card->readData(0x041800, nullptr, 0x0E4000 - 0x041800))
-                || (err = m_card->readData(0x162400, nullptr, 0x162800 - 0x162400))
-                || (err = m_card->readData(0x041800, nullptr, 0x0E4000 - 0x041800))) {
+            if ((err = m_card->readData(0x8000, nullptr, 0x200000 - 0x8000))
+                || (err = m_card->readData(0x8000, nullptr, 0x200000 - 0x8000))) {
                 logMessage(LOG_INFO, "Ace3DSPlus: readData failed: %d", err.errNo());
             }
 
