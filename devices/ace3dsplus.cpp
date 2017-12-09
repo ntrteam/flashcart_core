@@ -317,7 +317,7 @@ class Ace3DSPlus : Flashcart {
             return false;
         }
 
-        int timeout = 0x80;
+        int timeout = 0x200;
         do {
             if (!cmdSd(0x37, 0, 0x1C, buf)) {
                 return false;
@@ -407,7 +407,7 @@ public:
                 logMessage(LOG_INFO, "Ace3DSPlus: readData failed: %d", err.errNo());
             }
 
-            int timeout = 0x100;
+            int timeout = 0x200;
             do {
                 if (!cmdVersionStatus(&resp)) {
                     return false;
