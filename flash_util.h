@@ -122,7 +122,7 @@ public:
             const std::uint32_t cur_addr = real_start + cur;
             const std::uint32_t buf_ofs = ((dest_address > cur_addr) ? (dest_address - cur_addr) : 0);
             const std::uint32_t src_ofs = ((cur > first_page_offset) ? (cur - first_page_offset) : 0);
-            const std::uint32_t len = std::min<std::uint32_t>(eraseSize - buf_ofs, std::min<std::uint32_t>(length - src_ofs, eraseSize));
+            const std::uint32_t len = std::min<std::uint32_t>(eraseSize - buf_ofs, std::min<std::uint32_t>(length - src_ofs, std::uint32_t(eraseSize));
 
             if (!read(fc, cur_addr, eraseSize, buf)) {
                 platform::logMessage(LOG_ERR, "FlashUtil::write: read failed");
