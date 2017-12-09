@@ -496,6 +496,7 @@ public:
         }
 
         switch ((rdid & 0xFF0000) >> 16) {
+            case 0x14:
             case 0x15:
             case 0x16:
                 break;
