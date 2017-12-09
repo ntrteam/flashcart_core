@@ -461,19 +461,36 @@ public:
     }
 
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) {
-        if (firm_size > 826 * 1024) {
-            logMessage(LOG_NOTICE, "FIRM too big; maximum size is 826 KiB");
+        if (firm_size > 0x1F5200 /* 0x200000 - 0xAE00 */) {
+            logMessage(LOG_NOTICE, "FIRM too big; maximum size is 2052608 bytes");
             return false;
         }
 
-        uint8_t sp[0x1048];
-        std::memcpy(sp, blowfish_key + 0x48, 0x1000);
-        for (int i = 0; i < 0x12; ++i) {
-            std::memcpy(sp + 0x1000 + (0x11 - i)*4, blowfish_key + i*4, 4);
+        void *configPage = std::malloc(0x9048);
+        if (!configPage) {
+            logMessage(LOG_ERR, "malloc failed");
+            return false;
         }
 
-        return Util::write(this, 0x8000, 0x1048, sp, true, "Writing Blowfish key")
-            && Util::write(this, 0xFE00, firm_size, firm, true, "Writing FIRM");
+        uint16_t *configMap = static_cast<uint16_t *>(configPage);
+        for (int i = 0; i < 8; ++i) {
+            configMap[i] = 0xA;
+        }
+        for (int i = 0; i < (0x4000/2) - 8; ++i) {
+            configMap[i+8] = 0xB+i;
+        }
+        std::memcpy(configMap + 0x2000, configMap, 0x2000*2);
+
+        uint8_t *configBfKey = static_cast<uint8_t *>(configPage) + 0x8000;
+        std::memcpy(configBfKey, blowfish_key + 0x48, 0x1000);
+        for (int i = 0; i < 0x12; ++i) {
+            std::memcpy(configBfKey + 0x1000 + (0x11 - i)*4, blowfish_key + i*4, 4);
+        }
+
+        bool result = Util::write(this, 0, 0x9048, configPage, true, "Writing configuration")
+            && Util::write(this, 0xAE00, firm_size, firm, true, "Writing FIRM");
+        std::free(configPage);
+        return result;
     }
 };
 
