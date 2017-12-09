@@ -407,6 +407,11 @@ public:
                     return false;
                 }
             } while ((resp == 0 || resp == 0xFFFFFFFF) && --timeout);
+
+            if (resp == 0 || resp == 0xFFFFFFFF) {
+                logMessage(LOG_INFO, "Ace3DSPlus: 0xB0 still %08lX after timeout", resp);
+                return false;
+            }
         }
 
         logMessage(LOG_INFO, "Ace3DSPlus version: %08lX", resp);
