@@ -422,25 +422,27 @@ public:
         }
 
         if (rdid == 0xFFFFFF) {
-            if (!cartSdInit()) {
+            if (!cartSdInit() || !cmdSdReadSector() || !spiRdid(&rdid)) {
                 return false;
             }
 
-            if (!cmdSdReadSector()) {
-                return false;
-            }
-
-            if (!spiRdid(&rdid) || rdid == 0xFFFFFF) {
+            if (rdid == 0xFFFFFF) {
+                logMessage(LOG_ERR, "Ace3DSPlus: RDID still %06lX after init", rdid);
                 return false;
             }
         }
 
-        if (!cmdEnableFlash()) {
+        if (!cmdEnableFlash() || !spiRdid(&rdid)) {
             return false;
         }
 
-        if (!spiRdid(&rdid)) {
-            return false;
+        switch ((rdid & 0xFF0000) >> 16) {
+            case 0x15:
+            case 0x16:
+                break;
+            default:
+                logMessage(LOG_ERR, "Ace3DSPlus: unexpected flash capacity in RDID: %06lX", rdid);
+                return false;
         }
 
         logMessage(LOG_INFO, "Ace3DSPlus RDID: %06lX", rdid);
