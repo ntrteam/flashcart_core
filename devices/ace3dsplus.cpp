@@ -362,6 +362,64 @@ class Ace3DSPlus : Flashcart {
         return false;
     }
 
+    bool tryPollVersion() {
+        int timeout = 0x200;
+        uint32_t resp;
+        do {
+            if (!cmdVersionStatus(&resp)) {
+                return false;
+            }
+        } while ((resp == 0 || resp == 0xFFFFFFFF) && --timeout);
+
+        if (resp == 0 || resp == 0xFFFFFFFF) {
+            logMessage(LOG_INFO, "Ace3DSPlus: 0xB0 still %08lX after timeout", resp);
+            return false;
+        }
+
+        return true;
+    }
+
+    void aapReadData(uint32_t addr) {
+        ncgc::Err err;
+        if ((err = m_card->readData(addr, nullptr, 0x200))) {
+            logMessage(LOG_INFO, "Ace3DSPlus: readData failed: %d", err.errNo());
+        }
+    }
+
+    bool passAntiAntiPiracy() {
+        // Deep Labyrinth flash
+        aapReadData(0x10FE00);
+        aapReadData(0x167400);
+        if (tryPollVersion()) {
+            return true;
+        }
+
+        // Spongebob flash
+        aapReadData(0x18DE00);
+        aapReadData(0x198C00);
+        aapReadData(0x1A0C00);
+        if (tryPollVersion()) {
+            return true;
+        }
+
+        // Metroid Prime Hunters flash
+        aapReadData(0x1159400); // wtf
+        aapReadData(0xB7400);
+        if (tryPollVersion()) {
+            return true;
+        }
+
+        logMessage(LOG_INFO, "Ace3DSPlus: known AAP sequences failed");
+        // last ditch attempt (sweep the first 2M and see if it works)
+        // (this works for the Deep Labyrinth flash)
+        ncgc::Err err;
+        if ((err = m_card->readData(0x8000, nullptr, 0x200000 - 0x8000))
+            || (err = m_card->readData(0x8000, nullptr, 0x200000 - 0x8000))) {
+            logMessage(LOG_INFO, "Ace3DSPlus: readData failed: %d", err.errNo());
+        }
+        return tryPollVersion();
+    }
+
     using Util = FlashUtil<Ace3DSPlus, 0, &Ace3DSPlus::spiRead, 12, &Ace3DSPlus::flashUtilErase, 8, &Ace3DSPlus::flashUtilPageProgram>;
 
 public:
@@ -382,8 +440,9 @@ public:
     bool initialize() {
         uint32_t resp;
         ncgc::Err err;
+        bool initFromRaw = m_card->state() != ncgc::NTRState::Key2;
 
-        if (m_card->state() != ncgc::NTRState::Key2
+        if (initFromRaw
             && !tryBlowfishKey(BlowfishKey::NTR)
             && !tryBlowfishKey(BlowfishKey::B9Retail)
             && !tryBlowfishKey(BlowfishKey::B9Dev)) {
@@ -395,21 +454,18 @@ public:
             return false;
         }
 
-        if (resp == 0 || resp == 0xFFFFFFFF) {
-            if ((err = m_card->readData(0x8000, nullptr, 0x200000 - 0x8000))
-                || (err = m_card->readData(0x8000, nullptr, 0x200000 - 0x8000))) {
-                logMessage(LOG_INFO, "Ace3DSPlus: readData failed: %d", err.errNo());
+        if (resp == 0 || resp == 0xFFFFFFFF || initFromRaw) {
+            if (!passAntiAntiPiracy()) {
+                logMessage(LOG_ERR, "Failed to pass Ace3DS anti-antipiracy");
+                return false;
             }
 
-            int timeout = 0x200;
-            do {
-                if (!cmdVersionStatus(&resp)) {
-                    return false;
-                }
-            } while ((resp == 0 || resp == 0xFFFFFFFF) && --timeout);
+            if (!cmdVersionStatus(&resp)) {
+                return false;
+            }
 
             if (resp == 0 || resp == 0xFFFFFFFF) {
-                logMessage(LOG_INFO, "Ace3DSPlus: 0xB0 still %08lX after timeout", resp);
+                logMessage(LOG_ERR, "0xB0 still returns %08lX", resp);
                 return false;
             }
         }
@@ -421,8 +477,11 @@ public:
             return false;
         }
 
-        if (rdid == 0xFFFFFF) {
-            if (!cartSdInit() || !cmdSdReadSector() || !spiRdid(&rdid)) {
+        if (rdid == 0xFFFFFF || initFromRaw) {
+            if (!cartSdInit()
+                || !cmdSdReadSector() || !cmdReadSdBufferPlain()
+                || !cmdSdReadSector() || !cmdReadSdBufferCrypted()
+                || !spiRdid(&rdid)) {
                 return false;
             }
 
@@ -466,12 +525,15 @@ public:
             return false;
         }
 
-        void *configPage = std::malloc(0x9048);
+        void *configPage = std::malloc(0x9100);
         if (!configPage) {
             logMessage(LOG_ERR, "malloc failed");
             return false;
         }
 
+        // map = struct.unpack("<8192H", flash[0:0x4000]) # python
+        // 0x4000:0x8000 is the map for pre-"anti-anti-piracy" (AAP)
+        // nor_address(rom_address) = (map[rom_address >> 12] << 12) + (rom_address & 0xFFF)
         uint16_t *configMap = static_cast<uint16_t *>(configPage);
         for (int i = 0; i < 8; ++i) {
             configMap[i] = 0xA;
@@ -481,13 +543,31 @@ public:
         }
         std::memcpy(configMap + 0x2000, configMap, 0x2000*2);
 
+        // grab the flash version info/hw rev/fw rev stuff off the flash
+        if (!spiRead(0x9050, 0x40, static_cast<uint8_t *>(configPage) + 0x9050)) {
+            logMessage(LOG_ERR, "Flash read failed");
+            return false;
+        }
+
+        // 0x90C0:0x9100 contains some sort of configuration
+        // it appears the two ints at 0x90C0 and 0x90C4 determine the B7 reads
+        // that must occur before flashcart commands are enabled
+        // it's not a raw address though, seems to be a bitfield with the address
+        // in the middle
+        uint32_t *configAAP = static_cast<uint32_t *>(configPage) + 0x90C0/4;
+        for (int i = 0; i < 16; ++i) {
+            // taken from Ace3DS X in ntrboot mode
+            // this appears to disable the AAP
+            configAAP[i] = 0xFFFFFFF0u;
+        }
+
         uint8_t *configBfKey = static_cast<uint8_t *>(configPage) + 0x8000;
         std::memcpy(configBfKey, blowfish_key + 0x48, 0x1000);
         for (int i = 0; i < 0x12; ++i) {
             std::memcpy(configBfKey + 0x1000 + (0x11 - i)*4, blowfish_key + i*4, 4);
         }
 
-        bool result = Util::write(this, 0, 0x9048, configPage, true, "Writing configuration")
+        bool result = Util::write(this, 0, 0x9100, configPage, true, "Writing configuration")
             && Util::write(this, 0xAE00, firm_size, firm, true, "Writing FIRM");
         std::free(configPage);
         return result;
