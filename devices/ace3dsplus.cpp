@@ -402,6 +402,13 @@ class Ace3DSPlus : Flashcart {
             return true;
         }
 
+        // Alex Rider flash
+        aapReadData(0x16D400);
+        aapReadData(0x6B200);
+        if (tryPollVersion()) {
+            return true;
+        }
+
         // Metroid Prime Hunters flash
         aapReadData(0x1159400); // wtf
         aapReadData(0xB7400);
