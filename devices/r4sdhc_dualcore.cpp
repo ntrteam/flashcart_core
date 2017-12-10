@@ -134,6 +134,10 @@ public:
                     "handsomematt, Normmatt, Kitlith,\n"
             "        stuckpixel, angelsl, et al.";
     }
+    
+    const char *getDescription() {
+        return "WIP support for r4isdhc.hk cards\n";
+    }
 
     bool initialize() {
         logMessage(LOG_INFO, "R4SDHC: Init");
