@@ -363,7 +363,7 @@ class Ace3DSPlus : Flashcart {
     }
 
     bool tryPollVersion() {
-        int timeout = 0x200;
+        int timeout = 0x10;
         uint32_t resp;
         do {
             if (!cmdVersionStatus(&resp)) {
