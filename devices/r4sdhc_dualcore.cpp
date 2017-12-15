@@ -1,3 +1,5 @@
+#ifdef TESTING
+
 #include <cstring>
 #include <algorithm>
 
@@ -230,3 +232,5 @@ const uint8_t R4SDHC_DualCore::cmdWaitFlashBusy[8] = {0xC0, 0x00, 0x00, 0x00, 0x
 
 R4SDHC_DualCore r4sdhc_dualcore;
 }
+
+#endif

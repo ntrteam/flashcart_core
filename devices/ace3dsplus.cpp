@@ -1,3 +1,5 @@
+#ifdef TESTING
+
 #include <cstring>
 
 #include <ncgcpp/ntrcard.h>
@@ -584,3 +586,5 @@ public:
 
 Ace3DSPlus ace3DSplus;
 }
+
+#endif
