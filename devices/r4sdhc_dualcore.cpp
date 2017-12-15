@@ -11,7 +11,7 @@ namespace flashcart_core {
 using platform::logMessage;
 using platform::showProgress;
 
-class R4SDHC_DualCore : Flashcart {
+class R4iGoldCC : Flashcart {
 private:
     static const uint8_t cmdGetSWRev[8];
     static const uint8_t cmdReadFlash[8];
@@ -77,7 +77,7 @@ private:
 
     void erase_cmd(uint32_t address) {
         uint8_t cmdbuf[8];
-        logMessage(LOG_DEBUG, "R4SDHC: erase(0x%08x)", address);
+        logMessage(LOG_DEBUG, "R4iGoldCC: erase(0x%08x)", address);
         memcpy(cmdbuf, cmdEraseFlash, 8);
         cmdbuf[2] = (address >> 16) & 0xFF;
         cmdbuf[3] = (address >>  8) & 0xFF;
@@ -89,7 +89,7 @@ private:
 
     void write_cmd(uint32_t address, uint8_t value) {
         uint8_t cmdbuf[8];
-        logMessage(LOG_DEBUG, "R4SDHC: write(0x%08x) = 0x%02x", address, value);
+        logMessage(LOG_DEBUG, "R4iGoldCC: write(0x%08x) = 0x%02x", address, value);
         memcpy(cmdbuf, cmdWriteByteFlash, 8);
         cmdbuf[1] = (address >> 16) & 0xFF;
         cmdbuf[2] = (address >>  8) & 0xFF;
@@ -103,10 +103,10 @@ private:
     bool trySecureInit(BlowfishKey key) {
         ncgc::Err err = m_card->init();
         if (err && !err.unsupported()) {
-            logMessage(LOG_ERR, "R4SDHC: trySecureInit: ntrcard::init failed");
+            logMessage(LOG_ERR, "R4iGoldCC: trySecureInit: ntrcard::init failed");
             return false;
         } else if (m_card->state() != ncgc::NTRState::Raw) {
-            logMessage(LOG_ERR, "R4SDHC: trySecureInit: status (%d) not RAW and cannot reset",
+            logMessage(LOG_ERR, "R4iGoldCC: trySecureInit: status (%d) not RAW and cannot reset",
                 static_cast<uint32_t>(m_card->state()));
             return false;
         }
@@ -117,11 +117,11 @@ private:
         state.key2.seed_byte = 0;
         m_card->setBlowfishState(platform::getBlowfishKey(key), key != BlowfishKey::NTR);
         if ((err = m_card->beginKey1())) {
-            logMessage(LOG_ERR, "R4SDHC: trySecureInit: init key1 (key = %d) failed: %d", static_cast<int>(key), err.errNo());
+            logMessage(LOG_ERR, "R4iGoldCC: trySecureInit: init key1 (key = %d) failed: %d", static_cast<int>(key), err.errNo());
             return false;
         }
         if ((err = m_card->beginKey2())) {
-            logMessage(LOG_ERR, "R4SDHC: trySecureInit: init key2 failed: %d", err.errNo());
+            logMessage(LOG_ERR, "R4iGoldCC: trySecureInit: init key2 failed: %d", err.errNo());
             return false;
         }
 
@@ -129,7 +129,7 @@ private:
     }
 
 public:
-    R4SDHC_DualCore() : Flashcart("R4 SDHC Dual Core", 0x200000) { }
+    R4iGoldCC() : Flashcart("R4 SDHC Dual Core", 0x200000) { }
 
     const char* getAuthor() {
         return
@@ -138,11 +138,11 @@ public:
     }
 
     bool initialize() {
-        logMessage(LOG_INFO, "R4SDHC: Init");
+        logMessage(LOG_INFO, "R4iGoldCC: Init");
 
         if (!trySecureInit(BlowfishKey::NTR) && !trySecureInit(BlowfishKey::B9Retail) && !trySecureInit(BlowfishKey::B9Dev))
         {
-          logMessage(LOG_ERR, "R4SDHC: Secure init failed!");
+          logMessage(LOG_ERR, "R4iGoldCC: Secure init failed!");
           return false;
         }
 
@@ -160,7 +160,7 @@ public:
 
         m_card->sendCommand(cmdGetSWRev, &sw_rev, 4, 80);
 
-        logMessage(LOG_INFO, "R4SDHC: Current Software Revsion: %08x", sw_rev);
+        logMessage(LOG_INFO, "R4iGoldCC: Current Software Revsion: %08x", sw_rev);
 
         m_card->sendCommand(cmdUnkD0AA, nullptr, 4, 80);
         m_card->sendCommand(cmdUnkD0AA, nullptr, 4, 80);
@@ -172,16 +172,16 @@ public:
           m_card->sendCommand(cmdUnkB7, resp2, 0x200, 80);
         } while(std::memcmp(resp1, resp2, 0x200));
 
-        logMessage(LOG_WARN, "R4SDHC: We have no way of detecting this cart!");
+        logMessage(LOG_WARN, "R4iGoldCC: We have no way of detecting this cart!");
 
         return true; // We have no way of checking yet.
     }
     void shutdown() {
-        logMessage(LOG_INFO, "R4SDHC: Shutdown");
+        logMessage(LOG_INFO, "R4iGoldCC: Shutdown");
     }
 
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
-        logMessage(LOG_INFO, "R4SDHC: readFlash(addr=0x%08x, size=0x%x)", address, length);
+        logMessage(LOG_INFO, "R4iGoldCC: readFlash(addr=0x%08x, size=0x%x)", address, length);
         for(uint32_t addr = 0; addr < length; addr += 0x200)
         {
           read_cmd(addr + address, buffer + addr);
@@ -195,7 +195,7 @@ public:
     }
 
     bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {
-        logMessage(LOG_INFO, "R4SDHC: writeFlash(addr=0x%08x, size=0x%x)", address, length);
+        logMessage(LOG_INFO, "R4iGoldCC: writeFlash(addr=0x%08x, size=0x%x)", address, length);
         for (uint32_t addr=0; addr < length; addr+=0x10000)
         {
             erase_cmd(address + addr);
@@ -215,22 +215,22 @@ public:
 
     // Need to find offsets first.
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) {
-        logMessage(LOG_ERR, "R4SDHC: ntrboot injection not implemented!");
+        logMessage(LOG_ERR, "R4iGoldCC: ntrboot injection not implemented!");
         return false;
     }
 };
 
-const uint8_t R4SDHC_DualCore::cmdUnkB7[8] = {0xB7, 0x00, 0x00, 0x00, 0x00, 0x15, 0x00, 0x00}; //reads flash at offset 0x40000
-const uint8_t R4SDHC_DualCore::cmdUnkD0AA[8] = {0xD0, 0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-const uint8_t R4SDHC_DualCore::cmdUnkD0[8] = {0xD0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t R4iGoldCC::cmdUnkB7[8] = {0xB7, 0x00, 0x00, 0x00, 0x00, 0x15, 0x00, 0x00}; //reads flash at offset 0x40000
+const uint8_t R4iGoldCC::cmdUnkD0AA[8] = {0xD0, 0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t R4iGoldCC::cmdUnkD0[8] = {0xD0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-const uint8_t R4SDHC_DualCore::cmdGetSWRev[8] = {0xC5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-const uint8_t R4SDHC_DualCore::cmdReadFlash[8] = {0xB7, 0x00, 0x00, 0x00, 0x00, 0x22, 0x00, 0x00};
-const uint8_t R4SDHC_DualCore::cmdEraseFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00};
-const uint8_t R4SDHC_DualCore::cmdWriteByteFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00};
-const uint8_t R4SDHC_DualCore::cmdWaitFlashBusy[8] = {0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t R4iGoldCC::cmdGetSWRev[8] = {0xC5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t R4iGoldCC::cmdReadFlash[8] = {0xB7, 0x00, 0x00, 0x00, 0x00, 0x22, 0x00, 0x00};
+const uint8_t R4iGoldCC::cmdEraseFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00};
+const uint8_t R4iGoldCC::cmdWriteByteFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00};
+const uint8_t R4iGoldCC::cmdWaitFlashBusy[8] = {0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-R4SDHC_DualCore r4sdhc_dualcore;
+R4iGoldCC r4igoldcc;
 }
 
 #endif
