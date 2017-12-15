@@ -129,12 +129,19 @@ private:
     }
 
 public:
-    R4iGoldCC() : Flashcart("R4 SDHC Dual Core", 0x200000) { }
+    R4iGoldCC() : Flashcart("R4i Gold CC", 0x200000) { }
 
     const char* getAuthor() {
         return
                     "handsomematt, Normmatt, Kitlith,\n"
             "        stuckpixel, angelsl, et al.";
+    }
+    const char *getDescription() {
+        return "Works with many various R4iGoldCC type flashcarts\n" 
+               " * R4i Gold CC (r4igold.cc)\n"
+               " * R4 SDHC Dual-Core (r4isdhc.hk)\n"
+               " * R4iTT 3DS (r4itt.net)\n"
+               " * R4i XDS 2014 (r4ixds.com)";
     }
 
     bool initialize() {
