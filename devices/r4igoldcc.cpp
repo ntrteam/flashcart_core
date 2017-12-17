@@ -1,5 +1,3 @@
-#ifdef TESTING
-
 #include <cstring>
 #include <algorithm>
 
@@ -140,8 +138,7 @@ public:
         return "Works with many various R4iGoldCC type flashcarts\n" 
                " * R4i Gold CC (r4igold.cc)\n"
                " * R4 SDHC Dual-Core (r4isdhc.hk)\n"
-               " * R4iTT 3DS (r4itt.net)\n"
-               " * R4i XDS 2014 (r4ixds.com)";
+               " * R4iTT 3DS (r4itt.net)\n";
     }
 
     bool initialize() {
@@ -237,7 +234,7 @@ const uint8_t R4iGoldCC::cmdEraseFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x01,
 const uint8_t R4iGoldCC::cmdWriteByteFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00};
 const uint8_t R4iGoldCC::cmdWaitFlashBusy[8] = {0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
+#ifdef TESTING
 R4iGoldCC r4igoldcc;
-}
-
 #endif
+}
