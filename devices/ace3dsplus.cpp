@@ -581,7 +581,6 @@ public:
         return result;
     }
 };
-#ifdef TESTING
+
 Ace3DSPlus ace3DSplus;
-#endif
 }
