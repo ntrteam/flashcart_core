@@ -75,7 +75,7 @@ private:
 
     void erase_cmd(uint32_t address) {
         uint8_t cmdbuf[8];
-        logMessage(LOG_DEBUG, "R4iGoldCC: erase(0x%08x)", address);
+        logMessage(LOG_DEBUG, "r4igold.cc: erase(0x%08x)", address);
         memcpy(cmdbuf, cmdEraseFlash, 8);
         cmdbuf[2] = (address >> 16) & 0xFF;
         cmdbuf[3] = (address >>  8) & 0xFF;
@@ -87,7 +87,7 @@ private:
 
     void write_cmd(uint32_t address, uint8_t value) {
         uint8_t cmdbuf[8];
-        logMessage(LOG_DEBUG, "R4iGoldCC: write(0x%08x) = 0x%02x", address, value);
+        logMessage(LOG_DEBUG, "r4igold.cc: write(0x%08x) = 0x%02x", address, value);
         memcpy(cmdbuf, cmdWriteByteFlash, 8);
         cmdbuf[1] = (address >> 16) & 0xFF;
         cmdbuf[2] = (address >>  8) & 0xFF;
@@ -101,10 +101,10 @@ private:
     bool trySecureInit(BlowfishKey key) {
         ncgc::Err err = m_card->init();
         if (err && !err.unsupported()) {
-            logMessage(LOG_ERR, "R4iGoldCC: trySecureInit: ntrcard::init failed");
+            logMessage(LOG_ERR, "r4igold.cc: trySecureInit: ntrcard::init failed");
             return false;
         } else if (m_card->state() != ncgc::NTRState::Raw) {
-            logMessage(LOG_ERR, "R4iGoldCC: trySecureInit: status (%d) not RAW and cannot reset",
+            logMessage(LOG_ERR, "r4igold.cc: trySecureInit: status (%d) not RAW and cannot reset",
                 static_cast<uint32_t>(m_card->state()));
             return false;
         }
@@ -115,11 +115,11 @@ private:
         state.key2.seed_byte = 0;
         m_card->setBlowfishState(platform::getBlowfishKey(key), key != BlowfishKey::NTR);
         if ((err = m_card->beginKey1())) {
-            logMessage(LOG_ERR, "R4iGoldCC: trySecureInit: init key1 (key = %d) failed: %d", static_cast<int>(key), err.errNo());
+            logMessage(LOG_ERR, "r4igold.cc: trySecureInit: init key1 (key = %d) failed: %d", static_cast<int>(key), err.errNo());
             return false;
         }
         if ((err = m_card->beginKey2())) {
-            logMessage(LOG_ERR, "R4iGoldCC: trySecureInit: init key2 failed: %d", err.errNo());
+            logMessage(LOG_ERR, "r4igold.cc: trySecureInit: init key2 failed: %d", err.errNo());
             return false;
         }
 
@@ -127,26 +127,26 @@ private:
     }
 
 public:
-    R4iGoldCC() : Flashcart("R4i Gold CC", 0x200000) { }
+    R4iGoldCC() : Flashcart("r4igold.cc", 0x200000) { }
 
     const char* getAuthor() {
         return
-                    "handsomematt, Normmatt, Kitlith,\n"
-            "        stuckpixel, angelsl, et al.";
+                    "Normmatt, Kitlith, stuckpixel,\n"
+                    "angelsl, et al.";
     }
     const char *getDescription() {
-        return "Works with many various R4iGoldCC type flashcarts\n" 
-               " * R4i Gold CC (r4igold.cc)\n"
+        return "Works with several carts similar to the r4igold.cc\n" 
+               " * R4i Gold (r4igold.cc)\n"
                " * R4 SDHC Dual-Core (r4isdhc.hk)\n"
                " * R4iTT 3DS (r4itt.net)\n";
     }
 
     bool initialize() {
-        logMessage(LOG_INFO, "R4iGoldCC: Init");
+        logMessage(LOG_INFO, "r4igold.cc: Init");
 
         if (!trySecureInit(BlowfishKey::NTR) && !trySecureInit(BlowfishKey::B9Retail) && !trySecureInit(BlowfishKey::B9Dev))
         {
-          logMessage(LOG_ERR, "R4iGoldCC: Secure init failed!");
+          logMessage(LOG_ERR, "r4igold.cc: Secure init failed!");
           return false;
         }
 
@@ -164,7 +164,7 @@ public:
 
         m_card->sendCommand(cmdGetSWRev, &sw_rev, 4, 80);
 
-        logMessage(LOG_INFO, "R4iGoldCC: Current Software Revsion: %08x", sw_rev);
+        logMessage(LOG_INFO, "r4igold.cc: Current Software Revsion: %08x", sw_rev);
 
         m_card->sendCommand(cmdUnkD0AA, nullptr, 4, 80);
         m_card->sendCommand(cmdUnkD0AA, nullptr, 4, 80);
@@ -176,16 +176,16 @@ public:
           m_card->sendCommand(cmdUnkB7, resp2, 0x200, 80);
         } while(std::memcmp(resp1, resp2, 0x200));
 
-        logMessage(LOG_WARN, "R4iGoldCC: We have no way of detecting this cart!");
+        logMessage(LOG_WARN, "r4igold.cc: We have no way of detecting this cart!");
 
         return true; // We have no way of checking yet.
     }
     void shutdown() {
-        logMessage(LOG_INFO, "R4iGoldCC: Shutdown");
+        logMessage(LOG_INFO, "r4igold.cc: Shutdown");
     }
 
     bool readFlash(uint32_t address, uint32_t length, uint8_t *buffer) {
-        logMessage(LOG_INFO, "R4iGoldCC: readFlash(addr=0x%08x, size=0x%x)", address, length);
+        logMessage(LOG_INFO, "r4igold.cc: readFlash(addr=0x%08x, size=0x%x)", address, length);
         for(uint32_t addr = 0; addr < length; addr += 0x200)
         {
           read_cmd(addr + address, buffer + addr);
@@ -199,7 +199,7 @@ public:
     }
 
     bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {
-        logMessage(LOG_INFO, "R4iGoldCC: writeFlash(addr=0x%08x, size=0x%x)", address, length);
+        logMessage(LOG_INFO, "r4igold.cc: writeFlash(addr=0x%08x, size=0x%x)", address, length);
         for (uint32_t addr=0; addr < length; addr+=0x10000)
         {
             erase_cmd(address + addr);
@@ -219,7 +219,7 @@ public:
 
     // Need to find offsets first.
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) {
-        logMessage(LOG_ERR, "R4iGoldCC: ntrboot injection not implemented!");
+        logMessage(LOG_ERR, "r4igold.cc: ntrboot injection not implemented!");
         return false;
     }
 };
