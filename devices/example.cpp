@@ -10,10 +10,14 @@ using platform::showProgress;
 class Example : Flashcart {
     public:
         // Name & Size of Flash Memory
-        Example() : Flashcart("Example Name", 0x400000) { }
+        Example() : Flashcart("Example Name", "Example", 0x400000) { }
 
         const char* getAuthor() { return "your name"; }
-        const char* getDescription() { return "something helpful\nuse\newlines"; }
+        const char* getDescription() {
+            return  "something helpful\n"
+                    "use\n"
+                    "newlines";
+        }
 
         /*
         called when the user selects this flashcart

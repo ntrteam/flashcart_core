@@ -97,7 +97,7 @@ protected:
     }
 
 public:
-    AK2i() : Flashcart("Acekard 2i", 0x200000) { }
+    AK2i() : Flashcart("Acekard 2i", "ak2i", 0x200000) { }
 
     const char *getAuthor() { return "Kitlith + Normmatt"; }
     const char *getDescription() { return "Works with the following carts:\n * Acekard 2i HW-44\n * Acekard 2i HW-81\n * R4i Ultra (r4ultra.com)"; }

@@ -21,6 +21,7 @@ namespace flashcart_core {
 class Flashcart {
 public:
     Flashcart(const char* name, const size_t max_length);
+    Flashcart(const char* name, const char* short_name, const size_t max_length);
 
     inline bool initialize(ncgc::NTRCard *card) {
         m_card = card;
@@ -33,12 +34,14 @@ public:
     virtual bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) = 0;
 
     const char *getName() { return m_name; }
+    const char *getShortName() { return m_short_name; }
     virtual const char *getAuthor() { return "unknown"; }
     virtual const char *getDescription() { return ""; }
     virtual size_t getMaxLength() { return m_max_length; }
 
 protected:
     const char* m_name;
+    const char* m_short_name;
     const size_t m_max_length;
     ncgc::NTRCard *m_card;
 

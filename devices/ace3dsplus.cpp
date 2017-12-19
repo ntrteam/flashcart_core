@@ -430,7 +430,7 @@ class Ace3DSPlus : Flashcart {
     using Util = FlashUtil<Ace3DSPlus, 0, &Ace3DSPlus::spiRead, 12, &Ace3DSPlus::flashUtilErase, 8, &Ace3DSPlus::flashUtilPageProgram>;
 
 public:
-    Ace3DSPlus() : Flashcart("Ace3DS Plus", 0x200000) { }
+    Ace3DSPlus() : Flashcart("Ace3DS+", "Ace3DSPlus", 0x200000) { }
 
     const char* getAuthor() {
         return "ntrteam, et al.";

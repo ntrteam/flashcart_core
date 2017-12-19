@@ -137,9 +137,9 @@ protected:
     uint8_t m_r4i_type;
 
 public:
-    R4i_Gold_3DS() : Flashcart("R4i Gold 3DS", 0x400000) { }
+    R4i_Gold_3DS() : Flashcart("R4i Gold 3DS", "R4iGold3DS", 0x400000) { }
 
-    const char *getAuthor() { return "Kitlith"; }
+    const char *getAuthor() { return "Kitlith + zoogie"; }
     const char *getDescription() {
         return "Works with many R4i Gold 3DS variants:\n"
                " * R4i Gold 3DS (RTS, rev A5/A6/A7) (r4ids.cn)\n"

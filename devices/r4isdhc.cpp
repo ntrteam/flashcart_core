@@ -262,7 +262,7 @@ class R4iSDHC : Flashcart {
 
 public:
     // Name & Size of Flash Memory
-    R4iSDHC() : Flashcart("R4iSDHC family", 0x200000), cart_type(1) { }
+    R4iSDHC() : Flashcart("R4iSDHC family", "r4isdhc", 0x200000), cart_type(1) { }
 
     const char* getAuthor() {
         return
@@ -276,7 +276,9 @@ public:
             "A family of DSTT clones. Tested with:\n"
             " * R4iSDHC RTS Lite (r4isdhc.com)\n"
             " * R4i-SDHC 3DS RTS (r4i-sdhc.com)\n"
-            " * R4i-SDHC B9S (r4i-sdhc.com)";
+            " * R4i-SDHC B9S (r4i-sdhc.com)\n"
+            "\n"
+            "Does not include the Dual-Core 2013 varient.";
     }
 
     bool initialize() {

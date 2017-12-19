@@ -132,10 +132,10 @@ public:
     const char* getAuthor() {
         return
                     "Normmatt, Kitlith, stuckpixel,\n"
-                    "angelsl, et al.";
+                    "       angelsl, et al.";
     }
     const char *getDescription() {
-        return "Works with several carts similar to the r4igold.cc\n" 
+        return "Works with several carts similar to the r4igold.cc\n"
                " * R4i Gold (r4igold.cc)\n"
                " * R4 SDHC Dual-Core (r4isdhc.hk)\n"
                " * R4iTT 3DS (r4itt.net)\n";
