@@ -7,7 +7,7 @@ End users cannot use this directly, and should use one of the following applicat
  - [ak2i_ntrcardhax_flasher](https://github.com/d3m3vilurr/ak2i_ntrcardhax_flasher) for use through DS flashcarts.
 
 ## Supported Carts
-![From Left to Right: Acekard 2i HW81, Acekard 2i HW44, R4i Gold 3DS RTS, R4i Gold 3DS, R4i Ultra, R4 3D Revolution, DSTT, R4i-SDHC RTS Lite, R4i-SDHC Dual-Core, R4-SDHC Gold Pro, R4i 3DS RTS, Infinity 3 R4i, R4i Gold 3DS Deluxe Edition, R4i-B9S](https://i.hentai.design/uploads/big/7f6f676a2df3574c30ebc65b61c130df.png)
+![From Left to Right: Acekard 2i HW81, Acekard 2i HW44, R4i Gold 3DS RTS, R4i Gold 3DS, R4i Ultra, R4 3D Revolution, DSTT, R4i-SDHC RTS Lite, R4i-SDHC Dual-Core, R4-SDHC Gold Pro, R4i 3DS RTS, Infinity 3 R4i, R4i Gold 3DS Deluxe Edition, R4i-B9S](https://i.lolis.stream/uploads/big/6c535398c6a74d580ffc9092c32d7687.png)
 - Acekard 2i HW-44
 - Acekard 2i HW-81
 - DSTT (**some flash chips only!**)
