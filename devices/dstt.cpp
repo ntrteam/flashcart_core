@@ -104,7 +104,7 @@ using platform::showProgress;
 const uint16_t supported_flashchips[] = {
     0x041F, 0x051F, 0x1A37, 0x3437, 0x49C2, 0x5BC2, 0x80BF, 0x9020, 0x9120, 0x9B37,
     0xA01F, 0xA31F, 0xA7C2, 0xA8C2, 0xBA01, 0xBA04, 0xBA1C, 0xBA4A, 0xBAC2, 0xB537,
-    0xB91C, 0xC11F, 0xC298, 0xC31F, 0xC420, 0xC4C2, 0xEE20, 0xEF20,
+    0xB91C, 0xC11F, 0xC298, 0xC31F, 0xC420, 0xC4C2, 0xEE20, 0xEF20, 0xED01,
 
     // untested "other" types:
     0x49B0, 0x9089, 0x912C, 0x9189, 0x922C, 0x9289, 0x9320, 0x9389, 0x9489, 0x9589,
@@ -179,6 +179,26 @@ private:
 
     bool flashchip_supported(uint32_t flashchip)
     {
+		// there's probably a better way to do this?
+		if ((uint16_t)flashchip == 0xed01) {
+			// AMD AM29LV001BT
+			// check for sector write protection, if it's enabled we can't do much
+			dstt_flash_command(0x87, 0x5555, 0xAA);
+			dstt_flash_command(0x87, 0x2AAA, 0x55);
+			dstt_flash_command(0x87, 0x5555, 0x90);
+			uint8_t writeProtected = false;
+			uint32_t address = 0;
+			for (; address < 0x10000; address += 0x4000) {
+				writeProtected = (uint8_t)(dstt_flash_command(0, address | 2, 0));
+				if (writeProtected) break;
+			};
+			dstt_reset();
+			if (writeProtected != 0) {
+				logMessage(LOG_NOTICE, "DSTT: Flashchip supported, but sector %d is write protected", address >> 14);
+			}
+			return (writeProtected == 0);
+		}
+		
         for (unsigned int i = 0; i < sizeof(supported_flashchips) / 2; ++i)
             if (supported_flashchips[i] == (uint16_t)flashchip)
                 return true;
@@ -268,6 +288,10 @@ private:
                 erase_blocks = std::vector<uint32_t>(9, 0x1000);
                 erase_blocks[0] = 0x8000;
                 break;
+			
+			case 0xED01:
+				erase_blocks = std::vector<uint32_t>(4, 0x4000);
+				break;
 
             case 0x49C2:
             case 0x5BC2:
