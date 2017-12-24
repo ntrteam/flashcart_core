@@ -7,7 +7,7 @@ End users cannot use this directly, and should use one of the following applicat
  - [ntrboot_flasher_nds](https://github.com/jason0597/ntrboot_flasher_nds) for use through DS flashcarts.
 
 ## Supported Carts
-![From Left to Right: Acekard 2i HW81, Acekard 2i HW44, R4i Gold 3DS RTS, R4i Gold 3DS, R4i Ultra, R4 3D Revolution, DSTT, R4i-SDHC RTS Lite, R4i-SDHC Dual-Core, R4-SDHC Gold Pro, R4i 3DS RTS, Infinity 3 R4i, R4i Gold 3DS Deluxe Edition, R4i-B9S](https://www.dropbox.com/s/1quom0d490wnpfd/flashcart_core_compatible_flashcarts.png?raw=1)
+![From Left to Right: Acekard 2i HW81, Acekard 2i HW44, R4i Gold 3DS RTS, R4i Gold 3DS, R4i Ultra, R4 3D Revolution, DSTT, R4i-SDHC RTS Lite, R4i-SDHC Dual-Core, R4-SDHC Gold Pro, R4i 3DS RTS, Infinity 3 R4i, R4i Gold 3DS Deluxe Edition, R4i-B9S, Ace3DS Plus, Gateway Blue, R4iSDHC Dual-Core (r4isdhc.com.cn)](https://www.dropbox.com/s/ntn9kcjdukmhoz0/flashcart_core_compatible_flashcarts.png?raw=1)
 
 - Acekard 2i HW-81
 - Acekard 2i HW-44
@@ -25,7 +25,6 @@ End users cannot use this directly, and should use one of the following applicat
 - R4i-SDHC Gold Pro (r4isdhc.com)
 - R4i-SDHC Dual-Core (r4isdhc.com)
 - R4i-SDHC RTS Lite (r4isdhc.com)
-- Ace3DS
 - Ace3DS Plus
 - Gateway Blue card (**not all work!**)
 - R4iSDHC dual-core (r4isdhc.com.cn); not to be confused with the dual-core from r4isdhc.**com** or r4isdhc.**hk**
