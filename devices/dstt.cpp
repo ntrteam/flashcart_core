@@ -183,16 +183,16 @@ private:
 		if ((uint16_t)flashchip == 0xed01) {
 			// AMD AM29LV001BT
 			// check for sector write protection, if it's enabled we can't do much
-			dstt_flash_command(0x87, 0x5555, 0xAA);
-			dstt_flash_command(0x87, 0x2AAA, 0x55);
-			dstt_flash_command(0x87, 0x5555, 0x90);
 			uint8_t writeProtected = false;
 			uint32_t address = 0;
 			for (; address < 0x10000; address += 0x4000) {
+				dstt_flash_command(0x87, 0x5555, 0xAA);
+				dstt_flash_command(0x87, 0x2AAA, 0x55);
+				dstt_flash_command(0x87, 0x5555, 0x90);
 				writeProtected = (uint8_t)(dstt_flash_command(0, address | 2, 0));
+				dstt_reset();
 				if (writeProtected) break;
 			};
-			dstt_reset();
 			if (writeProtected != 0) {
 				logMessage(LOG_NOTICE, "DSTT: Flashchip supported, but sector %d is write protected", address >> 14);
 			}
