@@ -533,7 +533,7 @@ public:
             return false;
         }
 
-        void *configPage = std::malloc(0x9100);
+        void *configPage = std::calloc(0x9100, 1);
         if (!configPage) {
             logMessage(LOG_ERR, "malloc failed");
             return false;
