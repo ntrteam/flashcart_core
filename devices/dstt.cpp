@@ -179,26 +179,6 @@ private:
 
     bool flashchip_supported(uint32_t flashchip)
     {
-		// there's probably a better way to do this?
-		if ((uint16_t)flashchip == 0xed01) {
-			// AMD AM29LV001BT
-			// check for sector write protection, if it's enabled we can't do much
-			uint8_t writeProtected = false;
-			uint32_t address = 0;
-			for (; address < 0x10000; address += 0x4000) {
-				dstt_flash_command(0x87, 0x5555, 0xAA);
-				dstt_flash_command(0x87, 0x2AAA, 0x55);
-				dstt_flash_command(0x87, 0x5555, 0x90);
-				writeProtected = (uint8_t)(dstt_flash_command(0, address | 2, 0));
-				dstt_reset();
-				if (writeProtected) break;
-			};
-			if (writeProtected != 0) {
-				logMessage(LOG_NOTICE, "DSTT: Flashchip supported, but sector %d is write protected", address >> 14);
-			}
-			return (writeProtected == 0);
-		}
-		
         for (unsigned int i = 0; i < sizeof(supported_flashchips) / 2; ++i)
             if (supported_flashchips[i] == (uint16_t)flashchip)
                 return true;
@@ -206,10 +186,21 @@ private:
         return false;
     }
 
-    void Erase_Block(uint32_t offset, uint32_t length)
+    bool Erase_Block(uint32_t offset, uint32_t length)
     {
         logMessage(LOG_DEBUG, "DSTT: erase_block(0x%08x)", offset);
         if (m_cmd_type == DSTT_CMD_TYPE_1) {
+            dstt_flash_command(0x87, 0x5555, 0xAA);
+            dstt_flash_command(0x87, 0x2AAA, 0x55);
+            dstt_flash_command(0x87, 0x5555, 0x90);
+            uint8_t writeProtected = (uint8_t)(dstt_flash_command(0, offset | 2, 0));
+            dstt_reset();
+
+            if (writeProtected) {
+                logMessage(LOG_ERR, "DSTT: Tried to write to write-protected sector %d!", offset >> 14);
+                return false;
+            }
+
             dstt_flash_command(0x87, 0x5555, 0xAA);
             dstt_flash_command(0x87, 0x2AAA, 0x55);
             dstt_flash_command(0x87, 0x5555, 0x80);
@@ -222,11 +213,17 @@ private:
             dstt_flash_command(0x87, offset, 0x20); // Erase Setup
             dstt_flash_command(0x87, offset, 0xD0); // Erase Confirm
 
-            // TODO: Timeout if something goes wrong.
-            while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
+            // TODO: Timeout
+            uint8_t status = 0;
+            while (!(status = dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0b10101010));
 
             dstt_flash_command(0x87, 0x00, 0x50); // Clear Status Register
             dstt_flash_command(0x87, 0x00, 0xFF); // Reset
+
+            if (status & 0b00101010) {
+                logMessage(LOG_ERR, "DSTT: Erase error! Status: 0x%02x", status);
+                return false;
+            }
         }
 
         uint32_t end_offset = offset + length;
@@ -235,99 +232,12 @@ private:
             // TODO: Timeout if something goes wrong.
             while (dstt_flash_command(0, offset, 0) != 0xFFFFFFFF);
         }
-    }
 
-    void Erase_Chip() {
-        std::vector<uint32_t> erase_blocks;
-        logMessage(LOG_INFO, "DSTT: Erasing Flash");
-
-        switch(m_flashchip)
-        {
-            case 0x041F:
-            case 0x9089:
-            case 0xA01F:
-            case 0xA31F:
-            case 0xB91C:
-                erase_blocks = {0x10000};
-                break;
-
-            case 0x051F:
-                erase_blocks = {0x4000, 0x2000, 0x2000, 0x8000};
-                break;
-
-            case 0x80BF:
-            case 0xC11F:
-            case 0xC31F:
-                erase_blocks = std::vector<uint32_t>(0x20, 0x800);
-                break;
-
-            case 0x1A37:
-            case 0x3437:
-            case 0xA7C2:
-            case 0xC298:
-            case 0xC420:
-            case 0xC4C2:
-                erase_blocks = {0x8000, 0x2000, 0x2000, 0x4000};
-                break;
-
-            case 0x49B0:
-            case 0x912C:
-            case 0x9189:
-            case 0x922C:
-            case 0x9320:
-            case 0x9389:
-            case 0x9589:
-            case 0x9789:
-                erase_blocks = std::vector<uint32_t>(9, 0x1000);
-                erase_blocks[8] = 0x8000;
-                break;
-
-            case 0x9289:
-            case 0x9489:
-            case 0x9689:
-                erase_blocks = std::vector<uint32_t>(9, 0x1000);
-                erase_blocks[0] = 0x8000;
-                break;
-			
-			case 0xED01:
-				erase_blocks = std::vector<uint32_t>(4, 0x4000);
-				break;
-
-            case 0x49C2:
-            case 0x5BC2:
-            case 0x9020:
-            case 0x9120:
-            case 0x9B37: // no datasheet
-            case 0xA8C2:
-            case 0xB537: // no datasheet
-            case 0xBA01:
-            case 0xBA04:
-            case 0xBA1C:
-            case 0xBA4A:
-            case 0xBAC2:
-            case 0xEE20:
-            case 0xEF20:
-            default:
-                erase_blocks = {0x2000, 0x1000, 0x1000, 0x4000, 0x8000};
-                break;
-        }
-
-        // calculate the max so we can show progress
-        uint32_t erase_endaddr = 0;
-        for (auto const& block_sz: erase_blocks) {
-            erase_endaddr += block_sz;
-        }
-
-        uint32_t erase_addr = 0;
-        for (auto const& block_sz: erase_blocks) {
-            showProgress(erase_addr, erase_endaddr, "Erasing Blocks");
-            Erase_Block(erase_addr, block_sz);
-            erase_addr += block_sz;
-        }
+        return true;
     }
 
     // pretty messy function, but gets the job done
-    void Program_Byte(uint32_t offset, uint8_t data)
+    bool Program_Byte(uint32_t offset, uint8_t data)
     {
         logMessage(LOG_DEBUG, "DSTT: program_byte(0x%08x) = 0x%02x", offset, data);
         if (m_cmd_type == DSTT_CMD_TYPE_2) {
@@ -335,11 +245,17 @@ private:
             dstt_flash_command(0x87, offset, 0x40); // Word Write
             dstt_flash_command(0x87, offset, data);
 
-            // TODO: Timeout if something goes wrong.
-            while (!(dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0x80));
+            // TODO: Timeout
+            uint8_t status = 0;
+            while (!(status = dstt_flash_command(0, offset & 0xFFFFFFFC, 0) & 0b10011010));
 
             dstt_flash_command(0x87, 0x00, 0x50); // Clear Status Register
-            //dstt_flash_command(0x87, offset, 0xFF); // Reset (offset not required)
+            dstt_flash_command(0x87, offset, 0xFF); // Reset (offset not required)
+
+            if (status & 0b00011010) {
+                logMessage(LOG_ERR, "Write error! Status: 0x%02x", status);
+                return false;
+            }
         } else if (m_cmd_type == DSTT_CMD_TYPE_1) {
             dstt_flash_command(0x87, 0x5555, 0xAA);
             dstt_flash_command(0x87, 0x2AAA, 0x55);
@@ -349,6 +265,19 @@ private:
             // TODO: Timeout if something goes wrong.
             while ((uint8_t)dstt_flash_command(0, offset, 0) != data);
         }
+
+        return true;
+    }
+
+    bool Program_Block(uint32_t addr, uint32_t length, uint8_t *data) {
+        if (!Erase_Block(addr, length)) return false;
+        for (uint32_t i = 0; i < length; ++i)
+        {
+            showProgress(i + 1, length, "Writing");
+            if (!Program_Byte(addr + i, data[i])) return false;
+        }
+
+        return true;
     }
 
 public:
@@ -417,18 +346,114 @@ public:
         return true;
     }
 
-    // todo: we're just assuming this is block (0x2000) aligned
     bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer)
     {
-        // really fucking temporary, writeFlash can only do full length writes
-        // todo: read and erase properly
-        Erase_Chip();
+        std::vector<uint32_t> erase_blocks;
         logMessage(LOG_INFO, "DSTT: writeFlash(addr=0x%08x, size=0x%x)", address, length);
 
-        for(uint32_t i = 0; i < length; i++)
+        switch(m_flashchip)
         {
-            showProgress(i+1, length, "Writing");
-            Program_Byte(address++, buffer[i]);
+            case 0x041F:
+            case 0x9089:
+            case 0xA01F:
+            case 0xA31F:
+            case 0xB91C:
+                erase_blocks = {0x10000};
+                break;
+
+            case 0x051F:
+                erase_blocks = {0x4000, 0x2000, 0x2000, 0x8000};
+                break;
+
+            case 0x80BF:
+            case 0xC11F:
+            case 0xC31F:
+                erase_blocks = std::vector<uint32_t>(0x20, 0x800);
+                break;
+
+            case 0x1A37:
+            case 0x3437:
+            case 0xA7C2:
+            case 0xC298:
+            case 0xC420:
+            case 0xC4C2:
+                erase_blocks = {0x8000, 0x2000, 0x2000, 0x4000};
+                break;
+
+            case 0x49B0:
+            case 0x912C:
+            case 0x9189:
+            case 0x922C:
+            case 0x9320:
+            case 0x9389:
+            case 0x9589:
+            case 0x9789:
+                erase_blocks = std::vector<uint32_t>(9, 0x1000);
+                erase_blocks[8] = 0x8000;
+                break;
+
+            case 0x9289:
+            case 0x9489:
+            case 0x9689:
+                erase_blocks = std::vector<uint32_t>(9, 0x1000);
+                erase_blocks[0] = 0x8000;
+                break;
+
+            case 0xED01:
+                erase_blocks = std::vector<uint32_t>(4, 0x4000);
+                break;
+
+            case 0x49C2:
+            case 0x5BC2:
+            case 0x9020:
+            case 0x9120:
+            case 0x9B37: // no datasheet
+            case 0xA8C2:
+            case 0xB537: // no datasheet
+            case 0xBA01:
+            case 0xBA04:
+            case 0xBA1C:
+            case 0xBA4A:
+            case 0xBAC2:
+            case 0xEE20:
+            case 0xEF20:
+            default:
+                erase_blocks = {0x2000, 0x1000, 0x1000, 0x4000, 0x8000};
+                break;
+        }
+
+        uint32_t block_addr = 0, end_address = address + length;
+        for (auto const& block_sz: erase_blocks) {
+            uint32_t block_end = block_addr + block_sz;
+            if (address < block_end) {
+                logMessage(LOG_DEBUG, "DSTT: preparing to write block, addr=0x%08x, size=0x%08x", block_addr, block_sz);
+
+                uint32_t src_offset = 0; // offset to data that we will be writing
+                uint32_t dest_offset = 0; // offset to location that we overwrite
+                if(block_addr < address) {
+                    dest_offset = address - block_addr;
+                    logMessage(LOG_DEBUG, "DSTT: offset from destination is 0x%08x", dest_offset);
+                } else {
+                    src_offset = block_addr - address;
+                    logMessage(LOG_DEBUG, "DSTT: offset from source is 0x%08x", src_offset);
+                }
+
+                uint32_t src_len = length - src_offset;
+                uint32_t dest_len = block_end - dest_offset;
+                uint32_t copy_len = std::min<uint32_t>(src_len, dest_len);
+
+                uint8_t *tmp_data = (uint8_t *)malloc(block_sz);
+                readFlash(block_addr, block_sz, tmp_data);
+
+                memcpy(tmp_data + dest_offset, buffer + src_offset, copy_len);
+
+                bool status = Program_Block(block_addr, block_sz, tmp_data);
+
+                free(tmp_data);
+                if (!status) return false;
+                if (end_address < block_end) break;
+            }
+            block_addr = block_end;
         }
 
         return true;
@@ -445,14 +470,11 @@ public:
             return false; // todo: return error code
         }
 
-        uint8_t* buffer = (uint8_t*)malloc(m_max_length);
-        readFlash(0, m_max_length, buffer);
-
-        memcpy(buffer + 0x1000, blowfish_key, 0x48);
-        memcpy(buffer + 0x2000, blowfish_key + 0x48, 0x1000);
-        memcpy(buffer + 0x7E00, firm, firm_size);
-
-        writeFlash(0, m_max_length, buffer);
+        // TODO: This might result in writing the first block twice.
+        // Implement chained writes or something?
+        writeFlash(0x1000, 0x48, blowfish_key);
+        writeFlash(0x2000, 0x1000, blowfish_key + 0x48);
+        writeFlash(0x7E00, firm_size, firm);
 
         return true;
     }
