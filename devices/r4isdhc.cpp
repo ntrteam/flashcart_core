@@ -3,6 +3,7 @@
 #include <ncgcpp/ntrcard.h>
 
 #include "../device.h"
+#include "../flash_util.h"
 
 namespace flashcart_core {
 using platform::logMessage;
@@ -41,18 +42,47 @@ class R4iSDHC : Flashcart {
         return buf.u32;
     }
 
+    bool norRead(uint32_t addr, uint32_t size, void *dest) {
+        uint32_t res = norRead(addr);
+        std::memcpy(dest, &res, std::min<uint32_t>(size, 4));
+
+        return true;
+    }
+
     void norWriteEnable() {
         m_card->sendCommand(norCmd(0, 1, 6, 0), nullptr, 4, 0x180000);
         ncgc::delay(0x60000);
     }
 
-    void norErase4k(const uint32_t address) {
+    bool norErase4k(const uint32_t address) {
         norWriteEnable();
         m_card->sendCommand(norCmd(0, 4, 0x20, address), nullptr, 4, 0x180000);
         ncgc::delay(41000000);
+
+        // now ideally if i could read the NOR status register, i'd do the memcpy here
+        // while the NOR does the sector erase, then just wait on it at the end. BUT NOPE!
+        // (and the datasheet doesn't say this chip can read while writing, so that's not an option)
+
+        bool success = false;
+        uint32_t retry = 0;
+        while (retry < 10) {
+            // some sanity checks..
+            success = norRead(address) == 0xFFFFFFFF &&
+                norRead(address + 0x1000 - 4) == 0xFFFFFFFF;
+            if (success) {
+                break;
+            }
+
+            ++retry;
+            logMessage(LOG_WARN, "r4isdhc: norErase4k: start or end isn't FF");
+            ncgc::delay(41000000);
+        }
+
+        return success;
     }
 
-    void norWrite256(const uint32_t address, const uint8_t *bytes) {
+    bool norWrite256(const uint32_t address, const void *src) {
+        const uint8_t *bytes = static_cast<const uint8_t *>(src);
         norWriteEnable();
         m_card->sendCommand(norCmd(0, 6, 2, address, bytes[0], bytes[1]), nullptr, 4, 0x180000);
         for (uint32_t cur = 2; cur < 0x100; cur += 2) {
@@ -60,114 +90,7 @@ class R4iSDHC : Flashcart {
         }
         m_card->sendCommand(norRaw(bytes[0], bytes[1], 0xF0), nullptr, 4, 0x180000);
         ncgc::delay(0x60000);
-    }
 
-    void norWrite4k(const uint32_t address, const uint8_t *bytes) {
-        uint32_t cur = 0;
-        while (cur < 0x1000) {
-            norWrite256(address + cur, bytes + cur);
-            cur += 0x100;
-        }
-    }
-
-    bool readNor(const uint32_t address, const uint32_t length, uint8_t *const buffer, bool progress = false) {
-        uint32_t cur = 0;
-
-        while (cur < length) {
-            uint32_t rd = norRead(address + cur);
-            std::memcpy(buffer + cur, &rd, std::min<uint32_t>(length - cur, sizeof(rd)));
-            cur += 4;
-            if (progress && cur % 0x4000) {
-                showProgress(cur, length, "Reading NOR");
-            }
-        }
-
-        return true;
-    }
-
-    bool writeNor(const uint32_t dest_address, const uint32_t length, const uint8_t *const src, bool progress = false,
-                    const char *const progress_str = "Writing NOR") {
-        const uint32_t real_start = dest_address & ~0xFFF;
-        const uint32_t first_page_offset = dest_address & 0xFFF;
-        const uint32_t real_length = ((length + first_page_offset) + 0xFFF) & ~0xFFF;
-        uint32_t cur = 0;
-        uint8_t buf[0x1000];
-
-        if (progress) {
-                showProgress(cur, real_length, progress_str);
-        }
-
-        while (cur < real_length) {
-            const uint32_t cur_addr = real_start + cur;
-            const uint32_t buf_ofs = ((dest_address > cur_addr) ? (dest_address - cur_addr) : 0);
-            const uint32_t src_ofs = ((cur > first_page_offset) ? (cur - first_page_offset) : 0);
-            const uint32_t len = std::min<uint32_t>(0x1000 - buf_ofs, std::min<uint32_t>(length - src_ofs, 0x1000));
-
-            if (!readNor(cur_addr, 0x1000, buf)) {
-                logMessage(LOG_ERR, "writeNor: failed to read");
-                return false;
-            }
-
-            // don't write if they're already identical
-            if (std::memcmp(buf + buf_ofs, src + src_ofs, len)) {
-                norErase4k(cur_addr);
-                // now ideally if i could read the NOR status register, i'd do the memcpy here
-                // while the NOR does the sector erase, then just wait on it at the end. BUT NOPE!
-                // (and the datasheet doesn't say this chip can read while writing, so that's not an option)
-
-                bool success = false;
-                uint32_t retry = 0;
-                while (retry < 10) {
-                    // some sanity checks..
-                    success = norRead(cur_addr) == 0xFFFFFFFF &&
-                        norRead(cur_addr + 0x1000 - 4) == 0xFFFFFFFF;
-                    if (success) {
-                        break;
-                    }
-
-                    showProgress(cur, real_length, "Waiting for NOR erase to finish");
-                    ++retry;
-                    logMessage(LOG_WARN, "writeNor: start or end isn't FF");
-                    ncgc::delay(41000000);
-                }
-
-                if (!success) {
-                    if (progress) {
-                        showProgress(0, 1, "NOR erase sanity check failed");
-                    }
-                    return false;
-                }
-
-                std::memcpy(buf + buf_ofs, src + src_ofs, len);
-
-                norWrite4k(cur_addr, buf);
-            }
-
-            cur += 0x1000;
-            if (progress) {
-                showProgress(cur, real_length, progress_str);
-            }
-        }
-
-        uint32_t t = norRead(dest_address);
-        if (std::memcmp(&t, src, std::min<uint32_t>(length, 4))) {
-            if (progress) {
-                showProgress(0, 1, "NOR write start verification failed");
-            }
-            logMessage(LOG_ERR, "writeNor: start mismatch after write");
-            return false;
-        }
-
-        if (length > 4) {
-            t = norRead(dest_address + length - 4);
-            if (std::memcmp(&t, src + length - 4, 4)) {
-                if (progress) {
-                    showProgress(0, 1, "NOR write end verification failed");
-                }
-                logMessage(LOG_ERR, "writeNor: end mismatch after write");
-                return false;
-            }
-        }
         return true;
     }
 
@@ -260,6 +183,8 @@ class R4iSDHC : Flashcart {
 
     uint8_t cart_type;
 
+    using Util = FlashUtil<R4iSDHC, 2, &R4iSDHC::norRead, 12, &R4iSDHC::norErase4k, 8, &R4iSDHC::norWrite256>;
+
 public:
     // Name & Size of Flash Memory
     R4iSDHC() : Flashcart("R4iSDHC family", "r4isdhc", 0x200000), cart_type(1) { }
@@ -320,11 +245,11 @@ public:
     void shutdown() { }
 
     bool readFlash(const uint32_t address, const uint32_t length, uint8_t *const buffer) override {
-        return readNor(address, length, buffer, true);
+        return Util::read(this, address, length, buffer, true);
     }
 
     bool writeFlash(const uint32_t address, const uint32_t length, const uint8_t *const buffer) override {
-        return writeNor(address, length, buffer, true);
+        return Util::write(this, address, length, buffer, true);
     }
 
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) override {
@@ -343,17 +268,17 @@ public:
         return
             // 1:1 map the ROM <=> NOR (unless it's an "old" cart - those don't seem to have
             // a mapping in the NOR)
-            writeNor(0x1000, 0x48, blowfish_key, true, "Writing Blowfish key (1)") && // blowfish P array
-            writeNor(0x2000, 0x1000, blowfish_key+0x48, true, "Writing Blowfish key (2)") && // blowfish S boxes
+            Util::write(this, 0x1000, 0x48, blowfish_key, true, "Writing Blowfish key (1)") && // blowfish P array
+            Util::write(this, 0x2000, 0x1000, blowfish_key+0x48, true, "Writing Blowfish key (2)") && // blowfish S boxes
             (
-                (cart_type == 1 && writeNor(0x40, 0x100, map, true, "Writing ROM <=> NOR map")) ||
+                (cart_type == 1 && Util::write(this, 0x40, 0x100, map, true, "Writing ROM <=> NOR map")) ||
                 (cart_type == 2 && true) // type 2 not need ROM-NOR map
             ) &&
-            writeNor(0x1F1000, 0x48, blowfish_key, true, "Writing Blowfish key (3)") && // blowfish P array
-            writeNor(0x1F2000, 0x1000, blowfish_key+0x48, true, "Writing Blowfish key (4)") && // blowfish S boxes
-            writeNor(0x7E00, firm_size, firm, true, "Writing FIRM (1)") && // FIRM
+            Util::write(this, 0x1F1000, 0x48, blowfish_key, true, "Writing Blowfish key (3)") && // blowfish P array
+            Util::write(this, 0x1F2000, 0x1000, blowfish_key+0x48, true, "Writing Blowfish key (4)") && // blowfish S boxes
+            Util::write(this, 0x7E00, firm_size, firm, true, "Writing FIRM (1)") && // FIRM
             // type2 carts read 0x8000-0x10000 from 0x1F8000-0x200000 instead of from 0x8000
-            writeNor(0x1F7E00, std::min<uint32_t>(firm_size, (cart_type == 1 ? 0x200 : 0x8200)), firm, true,
+            Util::write(this, 0x1F7E00, std::min<uint32_t>(firm_size, (cart_type == 1 ? 0x200 : 0x8200)), firm, true,
                 "Writing FIRM (2)"); // FIRM header
     }
 };
