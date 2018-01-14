@@ -317,7 +317,7 @@ class Ace3DSPlus : Flashcart {
             return false;
         }
 
-        int timeout = 0x200;
+        int timeout = 0x1000;
         do {
             if (!cmdSd(0x37, 0, 0x1C, buf)) {
                 return false;
@@ -345,7 +345,7 @@ class Ace3DSPlus : Flashcart {
             cmdSd(16, 0x200, 0x1C, buf);
 
             uint32_t resp, prev_resp = 0x40;
-            int timeout2 = 0x100;
+            int timeout2 = 0x1000;
             do {
                 if (!cmdVersionStatus(&resp)) { return false; }
                 if (!(resp & 0x40) && resp == prev_resp) { break; }
