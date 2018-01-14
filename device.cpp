@@ -6,7 +6,7 @@
 std::vector<flashcart_core::Flashcart*> *flashcart_core::flashcart_list = nullptr;
 
 flashcart_core::Flashcart::Flashcart(const char* name, const char* short_name, const size_t max_length)
-    : m_name(name), m_short_name(name), m_max_length(max_length) {
+    : m_name(name), m_short_name(short_name), m_max_length(max_length) {
     if (flashcart_list == nullptr) {
         flashcart_list = new std::vector<Flashcart*>();
     }
