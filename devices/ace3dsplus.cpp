@@ -552,11 +552,16 @@ public:
         std::memcpy(configMap + 0x2000, configMap, 0x2000*2);
 
         // grab the flash version info/hw rev/fw rev stuff off the flash
-        if (!spiRead(0x9050, 0x40, static_cast<uint8_t *>(configPage) + 0x9050)) {
+        if (!spiRead(0x9050, 0xB0, static_cast<uint8_t *>(configPage) + 0x9050)) {
             logMessage(LOG_ERR, "Flash read failed");
             return false;
         }
 
+// there are reports of carts being un-reflashable after flashing
+// (even blowfish init fails)
+// this may be the cause, although i haven't been able to reproduce it
+// just disable it, it isn't needed
+#if 0
         // 0x90C0:0x9100 contains some sort of configuration
         // it appears the two ints at 0x90C0 and 0x90C4 determine the B7 reads
         // that must occur before flashcart commands are enabled
@@ -568,6 +573,7 @@ public:
             // this appears to disable the AAP
             configAAP[i] = 0xFFFFFFF0u;
         }
+#endif
 
         uint8_t *configBfKey = static_cast<uint8_t *>(configPage) + 0x8000;
         std::memcpy(configBfKey, blowfish_key + 0x48, 0x1000);
