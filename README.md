@@ -67,6 +67,7 @@ You can find a copy of the license in the LICENSE file.
 
 ## Credits (in alphabetical order)
 - [@angelsl](https://github.com/angelsl) for [libncgc](https://github.com/angelsl/libncgc/) and many other contributions.
+- [@handsomematt](https://github.com/handsomematt) for DSTT support implementation.
 - [@hedgeberg](https://twitter.com/hedgeberg) for testing and inspiration.  
 - [@Hikari](https://twitter.com/yuukishiroko) for testing.
 - [@Myria](https://twitter.com/Myriachan) for testing.  
