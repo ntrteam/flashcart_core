@@ -25,8 +25,9 @@ End users cannot use this directly, and should use one of the following applicat
 - R4i-SDHC Gold Pro (r4isdhc.com)
 - R4i-SDHC RTS Lite (r4isdhc.com)
 - R4iSDHC Dual-Core (r4isdhc.com.cn)
+- R4 SDHC Dual Core (revisions 5.06/7.00/7.07) (r4isdhc.hk) (**R4iGold.cc may work as well, but have not been tested!**)
 
-**Note:** Flashcarts from r4isdhc.com tend to have yearly re-releases; most versions of these carts (2014-2018) should work but not all have been tested. Models from 2013 or earlier differ in hardware and are not currently supported.
+**Note:** Flashcarts from r4isdhc.com tend to have yearly re-releases; most versions of these carts (2014-2018) should work but not all have been tested. Models from 2013 or earlier differ in hardware but could be similar to the current R4 Dual Core flashcarts from r4isdhc.hk. While the R4 Dual Core (r4isdhc.hk) works, r4isdhc.com 2013 and earlier flashcarts may not.
 
 ## Requesting support for a new cart
 We get a lot of requests for new carts to be supported. Before requesting support, please read the existing open and closed issues to see if your cart has already been considered or not. If you'd like your cart to be supported please provide, at the very least, the following information:
@@ -67,6 +68,7 @@ You can find a copy of the license in the LICENSE file.
 
 ## Credits (in alphabetical order)
 - [@angelsl](https://github.com/angelsl) for [libncgc](https://github.com/angelsl/libncgc/) and many other contributions.
+- [@EleventhSign](https://github.com/EleventhSign) for R4 Dual Core (r4isdhc.hk) testing.
 - [@handsomematt](https://github.com/handsomematt) for DSTT support implementation.
 - [@hedgeberg](https://twitter.com/hedgeberg) for testing and inspiration.  
 - [@Hikari](https://twitter.com/yuukishiroko) for testing.
