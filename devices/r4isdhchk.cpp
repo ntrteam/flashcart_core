@@ -271,17 +271,17 @@ public:
 				break;
 			case 0x00000007:
 			case 0x00000707:
-				injectFlash(0x000000, 0x10000, 0x000000, Header_506, 0x000984, false);				//cart header
+				injectFlash(0x000000, 0x10000, 0x000000, Header_506, 0x000984, false);					//cart header
 				break;
 			default:
 				logMessage(LOG_ERR, "r4isdhc.hk: 0x%08x is not a recognized version and is therefore not supported.", sw_rev);
 				return false;
 		}
 				
-		injectFlash(0x010000, 0x10000, 0x000000, blowfish_key, 0x001048, true);						//blowfish 1
-		injectFlash(0x010000, 0x10000, 0x0055A8, firm, 0x200, true);								//FIRM header
+		injectFlash(0x010000, 0x10000, 0x000000, blowfish_key, 0x001048, true);							//blowfish 1
+		injectFlash(0x010000, 0x10000, 0x0055A8, firm, 0x200, true);									//FIRM header
 		uint32_t buf_size = PAGE_ROUND_UP(firm_size - 0x200 + 0x000000, 0x10000);
-		injectFlash(0x030000, buf_size, 0x000000, firm + 0x200, firm_size - 0x200, true);			//FIRM body
+		injectFlash(0x030000, buf_size, 0x000000, firm + 0x200, firm_size - 0x200, true);				//FIRM body
 
 		return true;
 	}
