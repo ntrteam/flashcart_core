@@ -13,7 +13,7 @@ class R4iSDHCHK : Flashcart {
 private:
     static const uint8_t cmdGetSWRev[8];
     static const uint8_t cmdReadFlash506[8];
-	static const uint8_t cmdReadFlash700[8];
+    static const uint8_t cmdReadFlash700[8];
     static const uint8_t cmdEraseFlash[8];
     static const uint8_t cmdWriteByteFlash[8];
     static const uint8_t cmdWaitFlashBusy[8];
@@ -21,9 +21,9 @@ private:
     static const uint8_t cmdGetCartUniqueKey[8];
     static const uint8_t cmdUnkD0AA[8];
     static const uint8_t cmdGetChipID[8];
-	
-	static uint32_t sw_rev;
-	static uint8_t Header_506[];
+
+    static uint32_t sw_rev;
+    static uint8_t Header_506[];
 
     uint8_t encrypt(uint8_t dec) {
         uint8_t enc = 0;
@@ -56,27 +56,27 @@ private:
     void encrypt_memcpy(uint8_t * dst, uint8_t * src, uint32_t length) {
         for(uint32_t i = 0; i < length; ++i) {
             dst[i] = encrypt(src[i]);
-		}
+        }
     }
 
-	void read_cmd(uint32_t address, uint8_t *resp) {
-      uint8_t cmdbuf[8];
-	  
-	  switch (sw_rev) {
-		case 0x00000505:
-			/*placeholder if going to be supported in the future. There are no reports that this revision currently exists.*/
-			return;
-		case 0x00000605:
-			address = address + 0x610000;
-			memcpy(cmdbuf, cmdReadFlash506, 8);
-			break;
-		case 0x00000007:
-		case 0x00000707:
-			memcpy(cmdbuf, cmdReadFlash700, 8);
-			break;
-		default:
-			return;
-	  }
+    void read_cmd(uint32_t address, uint8_t *resp) {
+        uint8_t cmdbuf[8];
+
+        switch (sw_rev) {
+            case 0x00000505:
+                /*placeholder if going to be supported in the future. There are no reports that this revision currently exists.*/
+                return;
+            case 0x00000605:
+                address = address + 0x610000;
+                memcpy(cmdbuf, cmdReadFlash506, 8);
+                break;
+            case 0x00000007:
+                case 0x00000707:
+                memcpy(cmdbuf, cmdReadFlash700, 8);
+                break;
+            default:
+                return;
+        }
 
       cmdbuf[2] = (address >> 16) & 0x1F;
       cmdbuf[3] = (address >>  8) & 0xFF;
@@ -91,7 +91,7 @@ private:
       memcpy(cmdbuf, cmdWaitFlashBusy, 8);
 
       do {
-        m_card->sendCommand(cmdbuf, (uint8_t *)&resp, 4, 80);
+          m_card->sendCommand(cmdbuf, (uint8_t *)&resp, 4, 80);
       } while(resp);
     }
 
@@ -148,14 +148,14 @@ private:
         return true;
     }
 
-	void injectFlash(uint32_t chunk_addr, uint32_t chunk_length, uint32_t offset, uint8_t *src, uint32_t src_length, bool encryption) {
+    void injectFlash(uint32_t chunk_addr, uint32_t chunk_length, uint32_t offset, uint8_t *src, uint32_t src_length, bool encryption) {
         uint8_t *chunk = (uint8_t *)malloc(chunk_length);
-		readFlash(chunk_addr, chunk_length, chunk);
+        readFlash(chunk_addr, chunk_length, chunk);
         if (encryption) {
-			encrypt_memcpy(chunk + offset, src, src_length);
-		} else {
-			memcpy(chunk + offset, src, src_length);
-		}
+            encrypt_memcpy(chunk + offset, src, src_length);
+        } else {
+            memcpy(chunk + offset, src, src_length);
+        }
         writeFlash(chunk_addr, chunk_length, chunk);
         free(chunk);
     }
@@ -170,7 +170,7 @@ public:
     }
     const char * getDescription() {
         return "\n"
-		       "Works with several carts similar to the r4isdhc.hk\n"
+               "Works with several carts similar to the r4isdhc.hk\n"
                " * R4i SDHC Dual-Core (r4isdhc.hk)\n"
                " * R4i Gold (r4igold.cc)\n"
                " * R4iTT 3DS (r4itt.net)\n";
@@ -209,21 +209,21 @@ public:
           m_card->sendCommand(cmdGetCartUniqueKey, resp2, 0x200, 80);
         } while(std::memcmp(resp1, resp2, 0x200));
         
-		switch (sw_rev) {
-		    case 0x00000505:
-				logMessage(LOG_ERR, "r4isdhc.hk: Anything below 0x00000605 is not supported.");
-				return false;
-			case 0x00000605:
-			case 0x00000007:
-			case 0x00000707:
-			    break;
-			default:
-			    return false;
-		}
+        switch (sw_rev) {
+            case 0x00000505:
+                logMessage(LOG_ERR, "r4isdhc.hk: Anything below 0x00000605 is not supported.");
+                return false;
+            case 0x00000605:
+            case 0x00000007:
+            case 0x00000707:
+                break;
+            default:
+                return false;
+        }
 
         return true;
     }
-	 
+ 
     void shutdown() {
         logMessage(LOG_INFO, "r4isdhc.hk: Shutdown");
     }
@@ -232,23 +232,23 @@ public:
         logMessage(LOG_INFO, "r4isdhc.hk: readFlash(addr=0x%08x, size=0x%x)", address, length);
         for(uint32_t addr = 0; addr < length; addr += 0x200)
         {
-			read_cmd(addr + address, buffer + addr);
-			showProgress(addr, length, "Reading");
-			for(int i = 0; i < 0x200; i++)
-				/*the read command decrypts the raw flash contents before returning it you*/
-				/*so to get the raw flash contents, encrypt the returned values*/
-				*(buffer + addr + i) = encrypt(*(buffer + addr + i));
+            read_cmd(addr + address, buffer + addr);
+            showProgress(addr, length, "Reading");
+            for(int i = 0; i < 0x200; i++)
+                /*the read command decrypts the raw flash contents before returning it you*/
+                /*so to get the raw flash contents, encrypt the returned values*/
+                *(buffer + addr + i) = encrypt(*(buffer + addr + i));
         }
         return true;
     }
-	
-    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {		
-		logMessage(LOG_INFO, "r4isdhc.hk: writeFlash(addr=0x%08x, size=0x%x)", address, length);
-		for (uint32_t addr=0; addr < length; addr+=0x10000) {
+
+    bool writeFlash(uint32_t address, uint32_t length, const uint8_t *buffer) {
+        logMessage(LOG_INFO, "r4isdhc.hk: writeFlash(addr=0x%08x, size=0x%x)", address, length);
+        for (uint32_t addr=0; addr < length; addr+=0x10000) {
            erase_cmd(address + addr);
            showProgress(addr, length, "Erasing");
         }
-		
+        
         for (uint32_t i=0; i < length; i++) {
             /*the write command encrypts whatever you send it before actually writing to flash*/
             /*so we decrypt whatever we send to be written*/
@@ -261,50 +261,50 @@ public:
     }
 
     bool injectNtrBoot(uint8_t *blowfish_key, uint8_t *firm, uint32_t firm_size) {
-		logMessage(LOG_INFO, "r4isdhc.hk: Injecting ntrboot");
-		
-		switch (sw_rev) {
-			case 0x00000505:
-				/*placeholder if going to be supported in the future. There are no reports that this revision currently exists.*/
-				return false;
-			case 0x00000605:
-				break;
-			case 0x00000007:
-			case 0x00000707:
-				injectFlash(0x000000, 0x10000, 0x000000, Header_506, 0x000984, false);					//cart header
-				break;
-			default:
-				logMessage(LOG_ERR, "r4isdhc.hk: 0x%08x is not a recognized version and is therefore not supported.", sw_rev);
-				return false;
-		}
-				
-		injectFlash(0x010000, 0x10000, 0x000000, blowfish_key, 0x001048, true);							//blowfish 1
-		injectFlash(0x010000, 0x10000, 0x0055A8, firm, 0x200, true);									//FIRM header
-		uint32_t buf_size = PAGE_ROUND_UP(firm_size - 0x200 + 0x000000, 0x10000);
-		injectFlash(0x030000, buf_size, 0x000000, firm + 0x200, firm_size - 0x200, true);				//FIRM body
+        logMessage(LOG_INFO, "r4isdhc.hk: Injecting ntrboot");
 
-		return true;
-	}
+        switch (sw_rev) {
+            case 0x00000505:
+                /*placeholder if going to be supported in the future. There are no reports that this revision currently exists.*/
+                return false;
+            case 0x00000605:
+                break;
+            case 0x00000007:
+            case 0x00000707:
+                injectFlash(0x000000, 0x10000, 0x000000, Header_506, 0x000984, false);                  //cart header
+                break;
+            default:
+                logMessage(LOG_ERR, "r4isdhc.hk: 0x%08x is not a recognized version and is therefore not supported.", sw_rev);
+                return false;
+        }
+
+        injectFlash(0x010000, 0x10000, 0x000000, blowfish_key, 0x001048, true);                         //blowfish 1
+        injectFlash(0x010000, 0x10000, 0x0055A8, firm, 0x200, true);                                    //FIRM header
+        uint32_t buf_size = PAGE_ROUND_UP(firm_size - 0x200 + 0x000000, 0x10000);
+        injectFlash(0x030000, buf_size, 0x000000, firm + 0x200, firm_size - 0x200, true);               //FIRM body
+
+        return true;
+    }
 };
 
-const uint8_t R4iSDHCHK::cmdGetCartUniqueKey[8] = {0xB7, 0x00, 0x00, 0x00, 0x00, 0x15, 0x00, 0x00}; 	//reads flash at offset 0x2FE00
-const uint8_t R4iSDHCHK::cmdUnkD0AA[8] 			= {0xD0, 0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-const uint8_t R4iSDHCHK::cmdGetChipID[8] 		= {0xD0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};		//returns as 0xFC2
+const uint8_t R4iSDHCHK::cmdGetCartUniqueKey[8] = {0xB7, 0x00, 0x00, 0x00, 0x00, 0x15, 0x00, 0x00};     //reads flash at offset 0x2FE00
+const uint8_t R4iSDHCHK::cmdUnkD0AA[8] = {0xD0, 0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t R4iSDHCHK::cmdGetChipID[8] = {0xD0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};            //returns as 0xFC2
 
-const uint8_t R4iSDHCHK::cmdGetSWRev[8] 		= {0xC5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-const uint8_t R4iSDHCHK::cmdReadFlash700[8] 	= {0xB7, 0x00, 0x00, 0x00, 0x00, 0x22, 0x00, 0x00};
-const uint8_t R4iSDHCHK::cmdReadFlash506[8] 	= {0xB7, 0x01, 0x61, 0x00, 0x00, 0x00, 0x00, 0x00};
-const uint8_t R4iSDHCHK::cmdEraseFlash[8] 		= {0xD4, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00};
-const uint8_t R4iSDHCHK::cmdWriteByteFlash[8] 	= {0xD4, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00};
-const uint8_t R4iSDHCHK::cmdWaitFlashBusy[8] 	= {0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t R4iSDHCHK::cmdGetSWRev[8] = {0xC5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t R4iSDHCHK::cmdReadFlash700[8] = {0xB7, 0x00, 0x00, 0x00, 0x00, 0x22, 0x00, 0x00};
+const uint8_t R4iSDHCHK::cmdReadFlash506[8] = {0xB7, 0x01, 0x61, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t R4iSDHCHK::cmdEraseFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00};
+const uint8_t R4iSDHCHK::cmdWriteByteFlash[8] = {0xD4, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00};
+const uint8_t R4iSDHCHK::cmdWaitFlashBusy[8] = {0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 uint32_t R4iSDHCHK::sw_rev = 0;
 
-uint8_t R4iSDHCHK::Header_506[] = {						//stock 506 header
-	0x8B, 0x40, 0x03, 0x11, 0x4F, 0x00, 0x10, 0xAF, 
-	0x00, 0x01, 0x50, 0x03, 0x2F, 0xCF, 0x02, 0x00, 
+uint8_t R4iSDHCHK::Header_506[] = {                            //stock 506 header
+    0x8B, 0x40, 0x03, 0x11, 0x4F, 0x00, 0x10, 0xAF, 
+    0x00, 0x01, 0x50, 0x03, 0x2F, 0xCF, 0x02, 0x00, 
     0xA0, 0x02, 0x1D, 0x0F, 0x00, 0x01, 0xCF, 0x01, 
-	0x07, 0x54, 0x03, 0x00, 0xA0, 0x02, 0x5F, 0x00, 
+    0x07, 0x54, 0x03, 0x00, 0xA0, 0x02, 0x5F, 0x00, 
     0x00, 0x01, 0xC0, 0x01, 0x0B, 0x54, 0x03, 0x00, 
     0xA0, 0x02, 0x06, 0xCE, 0x02, 0x06, 0xCD, 0x02, 
     0x06, 0xCC, 0x02, 0x06, 0xCB, 0x02, 0x06, 0xCA, 
@@ -603,9 +603,9 @@ uint8_t R4iSDHCHK::Header_506[] = {						//stock 506 header
     0x0F, 0x00, 0x04, 0xCF, 0x02, 0x20, 0x1F, 0x00, 
     0x04, 0xCF, 0x02, 0x00, 0x0F, 0x00, 0x04, 0xCF, 
     0x02, 0x00, 0x0F, 0x00, 0x04, 0xCF, 0x02, 0x00, 
-	0x0F, 0x00, 0x04, 0xCF, 0x02, 0xC4, 0x41, 0x03, 
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00
+    0x0F, 0x00, 0x04, 0xCF, 0x02, 0xC4, 0x41, 0x03, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00
 };
 
 R4iSDHCHK r4isdhchk;
