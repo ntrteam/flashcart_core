@@ -271,6 +271,7 @@ public:
                 break;
             case 0x00000007:
             case 0x00000707:
+                logMessage(LOG_INFO, "r4isdhc.hk: Write firmware (header) revision 5.06");
                 injectFlash(0x000000, 0x10000, 0x000000, Header_506, 0x000984, false);                  //cart header
                 break;
             default:
