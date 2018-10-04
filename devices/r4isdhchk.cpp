@@ -218,6 +218,7 @@ public:
             case 0x00000707:
                 break;
             default:
+                logMessage(LOG_ERR, "r4isdhc.hk: 0x%08x is not a recognized version and is therefore not supported.", sw_rev);
                 return false;
         }
 
@@ -275,7 +276,6 @@ public:
                 injectFlash(0x000000, 0x10000, 0x000000, Header_506, 0x000984, false);                  //cart header
                 break;
             default:
-                logMessage(LOG_ERR, "r4isdhc.hk: 0x%08x is not a recognized version and is therefore not supported.", sw_rev);
                 return false;
         }
 
