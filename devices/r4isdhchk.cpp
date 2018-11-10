@@ -279,7 +279,7 @@ public:
                 /*game header from 0x11100, move to 0x1000 (len = 200h)*/
                 block_0[0x1B0] = 0;                 block_0[0x1B9] = 0x10;
 
-                /*blowfish key from 0x11100, move to 0x1600 (len = 1048h)*/
+                /*blowfish key from 0x10000, move to 0x1600 (len = 1048h)*/
                 block_0[0x1F8] = 0;                 block_0[0x1FE] = 0x16;
                 block_0[0x25B] = 0;                 block_0[0x261] = 0x16;
                 block_0[0x2AC] = 0;                 block_0[0x2B2] = 0x16;
@@ -303,7 +303,7 @@ public:
                 /*game header from 0x11100, move to 0x1000 (len = 200h)*/
                 block_0[0x189] = 0;                 block_0[0x192] = 0x10;
 
-                /*blowfish key from 0x11100, move to 0x1600 (len = 1048h)*/
+                /*blowfish key from 0x10000, move to 0x1600 (len = 1048h)*/
                 block_0[0x1D1] = 0;                 block_0[0x1D7] = 0x16;
                 block_0[0x234] = 0;                 block_0[0x23A] = 0x16;
                 block_0[0x285] = 0;                 block_0[0x28B] = 0x16;
@@ -315,7 +315,7 @@ public:
                 /*secure area (7k) from 0x14700, move to 0x3000 (len = 1100h)*/
                 block_0[0x4C8] = 0;                 block_0[0x4CB] = 0x30;
 
-                /*main data area (8k) from 0x30000, move to 0x5000 (len = 7600h)*/
+                /*main data area (8k) from 0x40000, move to 0x5000 (len = 7600h)*/
                 block_0[0x627] = 0x30;              block_0[0x628] = 0xC0;
                 block_0[0x62A] = 0;                 block_0[0x62B] = 0xE1;
                 
