@@ -17,6 +17,7 @@ Supported Chips using the same standard of command definitons (type A):
     0x051F: https://media.digikey.com/pdf/Data%20Sheets/Atmel%20PDFs/AT49BV,LV001(N)(T).pdf
     0x1A37: http://www.dataman.com/media/datasheet/AMIC/A29L800.pdf
     0x3437: http://www.dataman.com/media/datasheet/AMIC/A29L400.pdf
+    0x4C41: SPANSION S29GL032M10TFIR3 https://pdf1.alldatasheet.com/datasheet-pdf/download/212222/SPANSION/S29GL032M10TFIR30.html
     0x49C2: http://pdf1.alldatasheet.com/datasheet-pdf/view/113400/MCNIX/MX29LV160BB.html
     0x5BC2: http://www.dataman.com/media/datasheet/Macronix/MX29LV800B-T.pdf
     0x80BF: http://www.metatech.com.hk/datasheet/sst/standard_mem_pdf/360-39LF-VFx00A-3-DS.pdf (29 blocks of 2048 bytes)
@@ -102,9 +103,9 @@ using platform::logMessage;
 using platform::showProgress;
 
 const uint16_t supported_flashchips[] = {
-    0x041F, 0x051F, 0x1A37, 0x3437, 0x49C2, 0x5BC2, 0x80BF, 0x9020, 0x9120, 0x9B37,
-    0xA01F, 0xA31F, 0xA7C2, 0xA8C2, 0xBA01, 0xBA04, 0xBA1C, 0xBA4A, 0xBAC2, 0xB537,
-    0xB91C, 0xC11F, 0xC298, 0xC31F, 0xC420, 0xC4C2, 0xEE20, 0xEF20, 0xED01,
+    0x041F, 0x051F, 0x1A37, 0x3437, 0x4C41, 0x49C2, 0x5BC2, 0x80BF, 0x9020, 0x9120,
+    0x9B37, 0xA01F, 0xA31F, 0xA7C2, 0xA8C2, 0xBA01, 0xBA04, 0xBA1C, 0xBA4A, 0xBAC2,
+    0xB537, 0xB91C, 0xC11F, 0xC298, 0xC31F, 0xC420, 0xC4C2, 0xEE20, 0xEF20, 0xED01,
 
     // untested "other" types:
     0x49B0, 0x9089, 0x912C, 0x9189, 0x922C, 0x9289, 0x9320, 0x9389, 0x9489, 0x9589,
@@ -180,7 +181,7 @@ private:
     bool flashchip_supported(uint32_t flashchip)
     {
 		// there's probably a better way to do this?
-		if ((uint16_t)flashchip == 0xed01) {
+		if ((uint16_t)flashchip == 0xed01 || (uint16_t)flashchip == 0x4C41) {
 			// AMD AM29LV001BT
 			// check for sector write protection, if it's enabled we can't do much
 			uint8_t writeProtected = false;
@@ -268,6 +269,10 @@ private:
             case 0xC420:
             case 0xC4C2:
                 erase_blocks = {0x8000, 0x2000, 0x2000, 0x4000};
+                break;
+
+            case 0x4C41:
+                erase_blocks = {0x8000, 0x8000};
                 break;
 
             case 0x49B0:
