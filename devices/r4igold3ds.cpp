@@ -54,7 +54,7 @@ private:
          if (enc & BIT(4)) dec |= BIT(0);
          if (enc & BIT(5)) dec |= BIT(7);
          if (enc & BIT(6)) dec |= BIT(3);
-         if (enc & BIT(6)) dec |= BIT(2);
+         if (enc & BIT(7)) dec |= BIT(2);
          return dec;
     }
 
@@ -212,6 +212,9 @@ public:
         for (uint32_t curpos=0; curpos < length; curpos+=0x200) {
             r4i_read(buffer + curpos, address + curpos);
             showProgress(curpos+1,length, "Reading");
+            for(int i = 0; i < 0x200; i++) {
+                *(buffer + curpos + i) = decrypt(*(buffer + curpos + i));
+	    }
         }
 
         return true;
@@ -224,7 +227,8 @@ public:
             r4i_erase(address + addr);
 
         for (uint32_t i=0; i < length; i++) {
-            r4i_writebyte(address + i, buffer[i]);
+            uint8_t byte = encrypt(buffer[i], i);
+            r4i_writebyte(address + i, byte);
             showProgress(i+1,length, "Writing");
         }
 
